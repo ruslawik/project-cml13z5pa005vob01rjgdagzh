@@ -38,16 +38,63 @@ const mockProductData: ProductInfo = {
   ]
 };
 
+// Type for API response to handle potential undefined response
+interface ApiResponse {
+  body?: ProductInfo;
+  error?: string;
+  success?: boolean;
+}
+
 export default function ScanScreen() {
   const [isScanning, setIsScanning] = useState(false);
   const [scannedProduct, setScannedProduct] = useState<ProductInfo | null>(null);
   const [scanningAnimation] = useState(new Animated.Value(0));
+  const [error, setError] = useState<string | null>(null);
   
   const bottomSheetTranslateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const scanningAnimationRef = useRef<Animated.CompositeAnimation | null>(null);
 
-  const startScanning = () => {
+  const handleApiResponse = (response: ApiResponse | null | undefined): ProductInfo | null => {
+    // Handle undefined/null response
+    if (!response) {
+      setError("No response received from server");
+      return null;
+    }
+
+    // Handle response without body property
+    if (!response.body) {
+      setError(response.error || "No product data found");
+      return null;
+    }
+
+    // Handle successful response with body
+    setError(null);
+    return response.body;
+  };
+
+  const simulateApiCall = (): Promise<ApiResponse> => {
+    return new Promise((resolve) => {
+      // Simulate various API response scenarios
+      setTimeout(() => {
+        const scenarios = [
+          // Successful response
+          { body: mockProductData, success: true },
+          // Response without body (simulating the error case)
+          { error: "Product not found", success: false },
+          // Null response
+          null,
+        ];
+        
+        // Mostly return successful responses for demo
+        const randomScenario = Math.random() < 0.8 ? scenarios[0] : scenarios[1];
+        resolve(randomScenario as ApiResponse);
+      }, 2000);
+    });
+  };
+
+  const startScanning = async () => {
     setIsScanning(true);
+    setError(null);
     
     // Create and store the animation reference
     const loopAnimation = Animated.loop(
@@ -68,19 +115,35 @@ export default function ScanScreen() {
     scanningAnimationRef.current = loopAnimation;
     loopAnimation.start();
 
-    // Simulate finding a product after random time
-    const scanTime = Math.random() * 3000 + 2000; // 2-5 seconds
-    setTimeout(() => {
-      setScannedProduct(mockProductData);
-      showBottomSheet();
+    try {
+      // Simulate API call with potential undefined response
+      const response = await simulateApiCall();
+      const productData = handleApiResponse(response);
       
+      if (productData) {
+        setScannedProduct(productData);
+        showBottomSheet();
+      } else {
+        // Handle case where no product data is returned
+        Alert.alert(
+          "Scan Failed", 
+          error || "Could not find product information",
+          [{ text: "Try Again", onPress: () => setIsScanning(false) }]
+        );
+        setIsScanning(false);
+      }
+    } catch (err) {
+      setError("Network error occurred");
+      Alert.alert("Error", "Failed to scan product. Please try again.");
+      setIsScanning(false);
+    } finally {
       // Stop the animation safely with null check
       if (scanningAnimationRef.current) {
         scanningAnimationRef.current.stop();
         scanningAnimationRef.current = null;
       }
       scanningAnimation.setValue(0);
-    }, scanTime);
+    }
   };
 
   const showBottomSheet = () => {
@@ -118,6 +181,7 @@ export default function ScanScreen() {
     }).start(() => {
       setScannedProduct(null);
       setIsScanning(false);
+      setError(null);
     });
   };
 
@@ -208,6 +272,10 @@ export default function ScanScreen() {
           }
         </Text>
         
+        {error && (
+          <Text style={styles.errorText}>{error}</Text>
+        )}
+        
         {!isScanning && !scannedProduct && (
           <View style={styles.buttonContainer}>
             <Button
@@ -236,85 +304,85 @@ export default function ScanScreen() {
           {/* Quick info */}
           <View style={styles.quickInfo}>
             <View style={styles.productQuickInfo}>
-              <Text style={styles.productNameQuick}>{scannedProduct.name || 'Unknown Product'}</Text>
-              <Text style={styles.productBrandQuick}>{scannedProduct.brand || 'Unknown Brand'}</Text>
+              <Text style={styles.productNameQuick}>{scannedProduct?.name || 'Unknown Product'}</Text>
+              <Text style={styles.productBrandQuick}>{scannedProduct?.brand || 'Unknown Brand'}</Text>
             </View>
             <View style={styles.scoreQuick}>
-              <Text style={styles.scoreValueQuick}>{scannedProduct.qualityScore || 0}</Text>
+              <Text style={styles.scoreValueQuick}>{scannedProduct?.qualityScore || 0}</Text>
               <Text style={styles.scoreMaxQuick}>/100</Text>
             </View>
           </View>
 
           {/* Detailed content */}
           <View style={styles.detailedContent}>
-            <QualityScore score={scannedProduct.qualityScore || 0} />
+            <QualityScore score={scannedProduct?.qualityScore || 0} />
 
             <View style={styles.nutrientsSection}>
               <Text style={styles.sectionTitle}>Nutrients (per 100g)</Text>
               <View style={styles.nutrientsGrid}>
                 <NutrientCard
                   name="Calories"
-                  value={scannedProduct.nutrients?.calories?.value || 0}
-                  unit={scannedProduct.nutrients?.calories?.unit || 'kcal'}
+                  value={scannedProduct?.nutrients?.calories?.value || 0}
+                  unit={scannedProduct?.nutrients?.calories?.unit || 'kcal'}
                 />
                 <NutrientCard
                   name="Protein"
-                  value={scannedProduct.nutrients?.protein?.value || 0}
-                  unit={scannedProduct.nutrients?.protein?.unit || 'g'}
+                  value={scannedProduct?.nutrients?.protein?.value || 0}
+                  unit={scannedProduct?.nutrients?.protein?.unit || 'g'}
                 />
                 <NutrientCard
                   name="Carbs"
-                  value={scannedProduct.nutrients?.carbs?.value || 0}
-                  unit={scannedProduct.nutrients?.carbs?.unit || 'g'}
+                  value={scannedProduct?.nutrients?.carbs?.value || 0}
+                  unit={scannedProduct?.nutrients?.carbs?.unit || 'g'}
                 />
                 <NutrientCard
                   name="Fat"
-                  value={scannedProduct.nutrients?.fat?.value || 0}
-                  unit={scannedProduct.nutrients?.fat?.unit || 'g'}
+                  value={scannedProduct?.nutrients?.fat?.value || 0}
+                  unit={scannedProduct?.nutrients?.fat?.unit || 'g'}
                 />
                 <NutrientCard
                   name="Fiber"
-                  value={scannedProduct.nutrients?.fiber?.value || 0}
-                  unit={scannedProduct.nutrients?.fiber?.unit || 'g'}
+                  value={scannedProduct?.nutrients?.fiber?.value || 0}
+                  unit={scannedProduct?.nutrients?.fiber?.unit || 'g'}
                 />
                 <NutrientCard
                   name="Sugar"
-                  value={scannedProduct.nutrients?.sugar?.value || 0}
-                  unit={scannedProduct.nutrients?.sugar?.unit || 'g'}
-                />
-                <NutrientCard
-                  name="Sodium"
-                  value={scannedProduct.nutrients?.sodium?.value || 0}
-                  unit={scannedProduct.nutrients?.sodium?.unit || 'mg'}
+                  value={scannedProduct?.nutrients?.sugar?.value || 0}
+                  unit={scannedProduct?.nutrients?.sugar?.unit || 'g'}
                 />
               </View>
             </View>
 
-            {/* Health Warnings */}
-            {scannedProduct.healthWarnings && scannedProduct.healthWarnings.length > 0 && (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Health Warnings</Text>
+            {scannedProduct?.healthWarnings && scannedProduct.healthWarnings.length > 0 && (
+              <View style={styles.warningsSection}>
+                <Text style={styles.sectionTitle}>⚠️ Health Warnings</Text>
                 {scannedProduct.healthWarnings.map((warning, index) => (
                   <View key={index} style={styles.warningItem}>
-                    <Ionicons name="warning" size={16} color={theme.colors.error} />
-                    <Text style={styles.warningText}>{warning}</Text>
+                    <Text style={styles.warningText}>• {warning}</Text>
                   </View>
                 ))}
               </View>
             )}
 
-            {/* Benefits */}
-            {scannedProduct.benefits && scannedProduct.benefits.length > 0 && (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Benefits</Text>
+            {scannedProduct?.benefits && scannedProduct.benefits.length > 0 && (
+              <View style={styles.benefitsSection}>
+                <Text style={styles.sectionTitle}>✓ Benefits</Text>
                 {scannedProduct.benefits.map((benefit, index) => (
                   <View key={index} style={styles.benefitItem}>
-                    <Ionicons name="checkmark-circle" size={16} color={theme.colors.success} />
-                    <Text style={styles.benefitText}>{benefit}</Text>
+                    <Text style={styles.benefitText}>• {benefit}</Text>
                   </View>
                 ))}
               </View>
             )}
+
+            <View style={styles.actionButtons}>
+              <Button
+                title="Scan Another"
+                onPress={dismissBottomSheet}
+                variant="outline"
+                icon="scan"
+              />
+            </View>
           </View>
         </Animated.View>
       )}
@@ -331,62 +399,76 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    padding: theme.spacing.lg,
   },
   cameraPlaceholder: {
-    width: 320,
-    height: 320,
-    backgroundColor: '#f5f5f5',
-    borderRadius: 16,
+    width: 300,
+    height: 300,
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.md,
     justifyContent: 'center',
     alignItems: 'center',
+    position: 'relative',
+    marginBottom: theme.spacing.lg,
     borderWidth: 2,
     borderColor: theme.colors.border,
-    borderStyle: 'dashed',
-    position: 'relative',
   },
   cameraText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: theme.colors.text,
-    marginTop: 16,
+    fontSize: theme.typography.body.fontSize,
+    fontWeight: theme.typography.body.fontWeight,
+    color: theme.colors.textSecondary,
+    marginTop: theme.spacing.sm,
   },
   cameraSubtext: {
-    fontSize: 14,
+    fontSize: theme.typography.caption.fontSize,
     color: theme.colors.textSecondary,
-    marginTop: 8,
     textAlign: 'center',
+    marginTop: theme.spacing.xs,
   },
   scanningOverlay: {
     position: 'absolute',
-    top: 20,
-    left: 20,
-    right: 20,
-    bottom: 20,
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   scanFrame: {
-    flex: 1,
+    width: 200,
+    height: 200,
     borderWidth: 2,
     borderColor: theme.colors.primary,
-    borderRadius: 8,
+    borderRadius: theme.borderRadius.sm,
+    position: 'absolute',
   },
   scanLine: {
     position: 'absolute',
-    left: 0,
-    right: 0,
+    left: 50,
+    right: 50,
     height: 2,
     backgroundColor: theme.colors.primary,
-    opacity: 0.8,
+    shadowColor: theme.colors.primary,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 4,
   },
   instructionText: {
-    fontSize: 16,
+    fontSize: theme.typography.body.fontSize,
     color: theme.colors.text,
-    marginTop: 24,
     textAlign: 'center',
+    marginBottom: theme.spacing.lg,
+  },
+  errorText: {
+    fontSize: theme.typography.body.fontSize,
+    color: theme.colors.error,
+    textAlign: 'center',
+    marginBottom: theme.spacing.md,
+    paddingHorizontal: theme.spacing.md,
   },
   buttonContainer: {
-    marginTop: 24,
-    width: 200,
+    width: '100%',
+    maxWidth: 200,
   },
   bottomSheet: {
     position: 'absolute',
@@ -394,14 +476,16 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     backgroundColor: theme.colors.surface,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingTop: 8,
+    borderTopLeftRadius: theme.borderRadius.lg,
+    borderTopRightRadius: theme.borderRadius.lg,
+    paddingHorizontal: theme.spacing.md,
+    paddingTop: theme.spacing.sm,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 5,
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 8,
+    height: SCREEN_HEIGHT,
   },
   bottomSheetHandle: {
     width: 40,
@@ -409,14 +493,13 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.border,
     borderRadius: 2,
     alignSelf: 'center',
-    marginBottom: 16,
+    marginBottom: theme.spacing.md,
   },
   quickInfo: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingBottom: 16,
+    paddingBottom: theme.spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border,
   },
@@ -424,70 +507,74 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   productNameQuick: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: theme.colors.text,
-  },
-  productBrandQuick: {
-    fontSize: 14,
-    color: theme.colors.textSecondary,
-    marginTop: 2,
-  },
-  scoreQuick: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-  },
-  scoreValueQuick: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: theme.colors.primary,
-  },
-  scoreMaxQuick: {
-    fontSize: 16,
-    color: theme.colors.textSecondary,
-    marginLeft: 2,
-  },
-  detailedContent: {
-    padding: 20,
-    paddingBottom: 40,
-  },
-  nutrientsSection: {
-    marginTop: 24,
-  },
-  sectionTitle: {
-    fontSize: 18,
+    fontSize: theme.typography.body.fontSize,
     fontWeight: '600',
     color: theme.colors.text,
-    marginBottom: 16,
+    marginBottom: 2,
+  },
+  productBrandQuick: {
+    fontSize: theme.typography.caption.fontSize,
+    color: theme.colors.textSecondary,
+  },
+  scoreQuick: {
+    alignItems: 'center',
+    backgroundColor: theme.colors.primary,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    borderRadius: theme.borderRadius.md,
+  },
+  scoreValueQuick: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: 'white',
+  },
+  scoreMaxQuick: {
+    fontSize: 12,
+    color: 'white',
+    opacity: 0.8,
+  },
+  detailedContent: {
+    paddingTop: theme.spacing.md,
+    paddingBottom: 100,
+  },
+  nutrientsSection: {
+    marginTop: theme.spacing.lg,
+  },
+  sectionTitle: {
+    fontSize: theme.typography.subheading.fontSize,
+    fontWeight: theme.typography.subheading.fontWeight,
+    color: theme.colors.text,
+    marginBottom: theme.spacing.md,
   },
   nutrientsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    justifyContent: 'space-between',
   },
-  section: {
-    marginTop: 24,
+  warningsSection: {
+    marginTop: theme.spacing.lg,
   },
   warningItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: theme.spacing.xs,
   },
   warningText: {
-    fontSize: 14,
-    color: theme.colors.text,
-    marginLeft: 8,
-    flex: 1,
+    fontSize: theme.typography.body.fontSize,
+    color: '#D32F2F',
+    lineHeight: 20,
+  },
+  benefitsSection: {
+    marginTop: theme.spacing.lg,
   },
   benefitItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: theme.spacing.xs,
   },
   benefitText: {
-    fontSize: 14,
-    color: theme.colors.text,
-    marginLeft: 8,
-    flex: 1,
+    fontSize: theme.typography.body.fontSize,
+    color: '#388E3C',
+    lineHeight: 20,
+  },
+  actionButtons: {
+    marginTop: theme.spacing.xl,
+    gap: theme.spacing.sm,
   },
 });
