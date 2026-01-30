@@ -1,5 +1,5 @@
-import React, { useState, useRef } from 'react';
-import { View, Text, Animated, Dimensions, StyleSheet, PanResponder, Alert, TouchableOpacity } from 'react-native';
+import React, { useState, useRef, useEffect } from 'react';
+import { View, Text, Animated, Dimensions, StyleSheet, Alert, TouchableOpacity, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import Button from '../components/Button';
@@ -61,14 +61,33 @@ const mockProductDatabase: { [key: string]: ProductInfo } = {
     benefits: [
       "Source of energy"
     ]
+  },
+  "4567890123456": {
+    name: "Greek Yogurt",
+    brand: "HealthyDairy",
+    barcode: "4567890123456",
+    qualityScore: 92,
+    nutrients: {
+      calories: { value: 100, unit: "kcal", per: "100g" },
+      protein: { value: 10, unit: "g", per: "100g" },
+      carbs: { value: 4, unit: "g", per: "100g" },
+      fat: { value: 5, unit: "g", per: "100g" },
+      fiber: { value: 0, unit: "g", per: "100g" },
+      sugar: { value: 4, unit: "g", per: "100g" },
+      sodium: { value: 65, unit: "mg", per: "100g" },
+    },
+    healthWarnings: [],
+    benefits: [
+      "High in protein",
+      "Rich in probiotics",
+      "Low in sugar",
+      "Source of calcium"
+    ]
   }
 };
 
-// Simulate scanning different barcodes for web/unsupported platforms
-const getRandomBarcode = (): string => {
-  const barcodes = Object.keys(mockProductDatabase);
-  return barcodes[Math.floor(Math.random() * barcodes.length)];
-};
+// Common barcodes for demo
+const sampleBarcodes = Object.keys(mockProductDatabase);
 
 interface ApiResponse {
   body?: ProductInfo;
@@ -77,11 +96,12 @@ interface ApiResponse {
 }
 
 export default function ScanScreen() {
-  const [isScanning, setIsScanning] = useState(false);
   const [scannedProduct, setScannedProduct] = useState<ProductInfo | null>(null);
   const [scanningAnimation] = useState(new Animated.Value(0));
   const [error, setError] = useState<string | null>(null);
   const [scanningStatus, setScanningStatus] = useState<string>('');
+  const [manualBarcode, setManualBarcode] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
   
   const bottomSheetTranslateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const scanningAnimationRef = useRef<Animated.CompositeAnimation | null>(null);
@@ -134,66 +154,16 @@ export default function ScanScreen() {
           };
           resolve({ body: genericProduct, success: true });
         }
-      }, 1500);
+      }, 1000);
     });
   };
 
-  const simulateRealScanning = (): Promise<ApiResponse> => {
-    return new Promise((resolve) => {
-      // Simulate the real camera scanning process
-      setScanningStatus('Simulating barcode scan...');
-      
-      setTimeout(() => {
-        setScanningStatus('Looking for barcode...');
-      }, 800);
-      
-      setTimeout(() => {
-        setScanningStatus('Barcode detected! Processing...');
-      }, 1800);
-      
-      setTimeout(() => {
-        setScanningStatus('Fetching product data...');
-        
-        // Simulate successful scan with random product
-        const randomBarcode = getRandomBarcode();
-        const productData = mockProductDatabase[randomBarcode];
-        
-        if (Math.random() > 0.1) { // 90% success rate
-          resolve({ body: productData, success: true });
-        } else {
-          resolve({ error: "Product not found in database", success: false });
-        }
-      }, 3000);
-    });
-  };
-
-  const startScanning = async () => {
-    // Demo mode for Expo Snack compatibility
-    setIsScanning(true);
-    setError(null);
-    setScanningStatus('Starting demo scan...');
-    
-    // Create and store the animation reference
-    const loopAnimation = Animated.loop(
-      Animated.sequence([
-        Animated.timing(scanningAnimation, {
-          toValue: 1,
-          duration: 1500,
-          useNativeDriver: false,
-        }),
-        Animated.timing(scanningAnimation, {
-          toValue: 0,
-          duration: 1500,
-          useNativeDriver: false,
-        }),
-      ])
-    );
-    
-    scanningAnimationRef.current = loopAnimation;
-    loopAnimation.start();
+  const handleBarcodeProcessing = async (barcode: string) => {
+    setIsProcessing(true);
+    setScanningStatus('Barcode detected! Processing...');
 
     try {
-      const response = await simulateRealScanning();
+      const response = await fetchProductData(barcode);
       const productData = handleApiResponse(response);
       
       if (productData) {
@@ -202,25 +172,41 @@ export default function ScanScreen() {
         showBottomSheet();
       } else {
         Alert.alert(
-          "Scan Failed", 
-          error || "Could not find product information. Try scanning a different barcode.",
-          [{ text: "Try Again", onPress: () => setIsScanning(false) }]
+          "Product Not Found", 
+          `Barcode: ${barcode}\n\nProduct not found in our database. Try a different barcode.`,
+          [{ text: "Try Again", onPress: resetScanning }]
         );
-        setIsScanning(false);
-        setScanningStatus('');
       }
     } catch (err) {
       setError("Network error occurred");
-      Alert.alert("Error", "Failed to scan product. Please try again.");
-      setIsScanning(false);
-      setScanningStatus('');
+      Alert.alert("Error", "Failed to fetch product data. Please try again.", [
+        { text: "Try Again", onPress: resetScanning }
+      ]);
     } finally {
-      if (scanningAnimationRef.current) {
-        scanningAnimationRef.current.stop();
-        scanningAnimationRef.current = null;
-      }
-      scanningAnimation.setValue(0);
+      setIsProcessing(false);
     }
+  };
+
+  const resetScanning = () => {
+    setScannedProduct(null);
+    setError(null);
+    setScanningStatus('');
+    setManualBarcode('');
+    setIsProcessing(false);
+    hideBottomSheet();
+  };
+
+  const handleManualScan = () => {
+    if (!manualBarcode.trim()) {
+      Alert.alert('Error', 'Please enter a valid barcode');
+      return;
+    }
+    handleBarcodeProcessing(manualBarcode.trim());
+  };
+
+  const handleSampleScan = (barcode: string) => {
+    setManualBarcode(barcode);
+    handleBarcodeProcessing(barcode);
   };
 
   const showBottomSheet = () => {
@@ -250,198 +236,163 @@ export default function ScanScreen() {
     }).start();
   };
 
-  const dismissBottomSheet = () => {
-    Animated.timing(bottomSheetTranslateY, {
+  const hideBottomSheet = () => {
+    Animated.spring(bottomSheetTranslateY, {
       toValue: SCREEN_HEIGHT,
-      duration: 300,
       useNativeDriver: false,
-    }).start(() => {
-      setScannedProduct(null);
-      setIsScanning(false);
-      setError(null);
-      setScanningStatus('');
-    });
-  };
-
-  const panResponder = PanResponder.create({
-    onMoveShouldSetPanResponder: (evt, gestureState) => {
-      return Math.abs(gestureState.dy) > 10;
-    },
-    onPanResponderGrant: (evt, gestureState) => {
-      // Start gesture
-    },
-    onPanResponderMove: (evt, gestureState) => {
-      const newValue = (SCREEN_HEIGHT - BOTTOM_SHEET_MIN_HEIGHT) + gestureState.dy;
-      bottomSheetTranslateY.setValue(Math.max(
-        SCREEN_HEIGHT - BOTTOM_SHEET_MAX_HEIGHT,
-        Math.min(SCREEN_HEIGHT, newValue)
-      ));
-    },
-    onPanResponderRelease: (evt, gestureState) => {
-      const { dy, vy } = gestureState;
-      
-      if (dy > 100 || vy > 0.5) {
-        if (dy > SCREEN_HEIGHT * 0.3) {
-          dismissBottomSheet();
-        } else {
-          collapseBottomSheet();
-        }
-      } else if (dy < -100 || vy < -0.5) {
-        expandBottomSheet();
-      } else {
-        collapseBottomSheet();
-      }
-    },
-  });
-
-  const renderCamera = () => {
-    // Demo mode interface for Expo Snack compatibility
-    return (
-      <View style={styles.cameraFallback}>
-        <Ionicons name="camera" size={80} color={theme.colors.primary} />
-        <Text style={styles.cameraFallbackText}>
-          Demo Mode - Simulated Barcode Scanner
-        </Text>
-        <Text style={styles.demoInstructions}>
-          Click "Demo Scan" to simulate scanning a product barcode
-        </Text>
-        {isScanning && (
-          <Animated.View
-            style={[
-              styles.scanLine,
-              {
-                transform: [
-                  {
-                    translateY: scanningAnimation.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [0, 200],
-                    }),
-                  },
-                ],
-              },
-            ]}
-          />
-        )}
-        {scanningStatus && (
-          <Text style={styles.scanningText}>{scanningStatus}</Text>
-        )}
-      </View>
-    );
+      tension: 100,
+      friction: 8,
+    }).start();
   };
 
   return (
     <View style={styles.container}>
-      {renderCamera()}
-
-      {/* Camera controls */}
-      <View style={styles.controlsContainer}>
-        {!isScanning && !scannedProduct && (
-          <Button
-            title="Demo Scan"
-            onPress={startScanning}
-            style={styles.scanButton}
-          />
-        )}
-      </View>
-
-      {/* Bottom Sheet */}
-      <Animated.View
-        style={[
-          styles.bottomSheet,
-          {
-            transform: [{ translateY: bottomSheetTranslateY }],
-          },
-        ]}
-        {...panResponder.panHandlers}
-      >
-        <View style={styles.bottomSheetHandle} />
+      <View style={styles.centerContent}>
+        <Ionicons name="barcode-outline" size={80} color={theme.colors.primary} />
+        <Text style={styles.title}>Product Barcode Scanner</Text>
+        <Text style={styles.subtitle}>
+          Enter a barcode manually or try one of our sample products to get detailed nutritional information
+        </Text>
         
-        {scannedProduct && (
-          <View style={styles.productContainer}>
-            <View style={styles.productHeader}>
-              <View style={styles.productInfo}>
-                <Text style={styles.productName}>{scannedProduct.name}</Text>
-                <Text style={styles.productBrand}>{scannedProduct.brand}</Text>
-                <Text style={styles.barcodeText}>Barcode: {scannedProduct.barcode}</Text>
-              </View>
-              <QualityScore score={scannedProduct.qualityScore} />
-            </View>
-
-            <View style={styles.nutrientsContainer}>
-              <Text style={styles.sectionTitle}>Nutritional Information</Text>
-              <View style={styles.nutrientsGrid}>
-                <NutrientCard
-                  name="Calories"
-                  value={scannedProduct.nutrients.calories.value}
-                  unit={scannedProduct.nutrients.calories.unit}
-                  per={scannedProduct.nutrients.calories.per}
-                />
-                <NutrientCard
-                  name="Protein"
-                  value={scannedProduct.nutrients.protein.value}
-                  unit={scannedProduct.nutrients.protein.unit}
-                  per={scannedProduct.nutrients.protein.per}
-                />
-                <NutrientCard
-                  name="Carbs"
-                  value={scannedProduct.nutrients.carbs.value}
-                  unit={scannedProduct.nutrients.carbs.unit}
-                  per={scannedProduct.nutrients.carbs.per}
-                />
-                <NutrientCard
-                  name="Fat"
-                  value={scannedProduct.nutrients.fat.value}
-                  unit={scannedProduct.nutrients.fat.unit}
-                  per={scannedProduct.nutrients.fat.per}
-                />
-                <NutrientCard
-                  name="Fiber"
-                  value={scannedProduct.nutrients.fiber.value}
-                  unit={scannedProduct.nutrients.fiber.unit}
-                  per={scannedProduct.nutrients.fiber.per}
-                />
-                <NutrientCard
-                  name="Sugar"
-                  value={scannedProduct.nutrients.sugar.value}
-                  unit={scannedProduct.nutrients.sugar.unit}
-                  per={scannedProduct.nutrients.sugar.per}
-                />
-              </View>
-            </View>
-
-            {scannedProduct.healthWarnings.length > 0 && (
-              <View style={styles.warningsContainer}>
-                <Text style={styles.sectionTitle}>Health Warnings</Text>
-                {scannedProduct.healthWarnings.map((warning, index) => (
-                  <View key={index} style={styles.warningItem}>
-                    <Ionicons name="warning" size={16} color={theme.colors.error} />
-                    <Text style={styles.warningText}>{warning}</Text>
-                  </View>
-                ))}
-              </View>
-            )}
-
-            {scannedProduct.benefits.length > 0 && (
-              <View style={styles.benefitsContainer}>
-                <Text style={styles.sectionTitle}>Benefits</Text>
-                {scannedProduct.benefits.map((benefit, index) => (
-                  <View key={index} style={styles.benefitItem}>
-                    <Ionicons name="checkmark-circle" size={16} color={theme.colors.success} />
-                    <Text style={styles.benefitText}>{benefit}</Text>
-                  </View>
-                ))}
-              </View>
-            )}
-
-            <TouchableOpacity
-              style={styles.closeButton}
-              onPress={dismissBottomSheet}
-            >
-              <Text style={styles.closeButtonText}>Close</Text>
-            </TouchableOpacity>
+        {error && (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>{error}</Text>
           </View>
         )}
-      </Animated.View>
+        
+        {scanningStatus && (
+          <View style={styles.statusContainer}>
+            <Text style={styles.statusText}>{scanningStatus}</Text>
+          </View>
+        )}
+
+        <View style={styles.inputContainer}>
+          <Text style={styles.inputLabel}>Enter Barcode:</Text>
+          <TextInput
+            style={styles.barcodeInput}
+            value={manualBarcode}
+            onChangeText={setManualBarcode}
+            placeholder="e.g., 1234567890123"
+            keyboardType="numeric"
+            editable={!isProcessing}
+          />
+          <Button 
+            title={isProcessing ? "Processing..." : "Scan Barcode"} 
+            onPress={handleManualScan}
+            disabled={isProcessing}
+          />
+        </View>
+
+        <View style={styles.sampleSection}>
+          <Text style={styles.sampleTitle}>Try Sample Products:</Text>
+          <View style={styles.sampleButtons}>
+            <TouchableOpacity 
+              style={styles.sampleButton}
+              onPress={() => handleSampleScan(sampleBarcodes[0])}
+              disabled={isProcessing}
+            >
+              <Text style={styles.sampleButtonText}>Organic Oats</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.sampleButton}
+              onPress={() => handleSampleScan(sampleBarcodes[1])}
+              disabled={isProcessing}
+            >
+              <Text style={styles.sampleButtonText}>Chocolate Cookies</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.sampleButton}
+              onPress={() => handleSampleScan(sampleBarcodes[2])}
+              disabled={isProcessing}
+            >
+              <Text style={styles.sampleButtonText}>Greek Yogurt</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        <View style={styles.demoNote}>
+          <Ionicons name="information-circle-outline" size={20} color={theme.colors.primary} />
+          <Text style={styles.demoNoteText}>
+            This is a demo version. In a real app, camera scanning would be available.
+          </Text>
+        </View>
+      </View>
+
+      {/* Bottom Sheet for Product Info */}
+      {scannedProduct && (
+        <Animated.View
+          style={[
+            styles.bottomSheet,
+            {
+              transform: [{ translateY: bottomSheetTranslateY }],
+            },
+          ]}
+        >
+          <View style={styles.bottomSheetHeader}>
+            <View style={styles.bottomSheetHandle} />
+            <TouchableOpacity onPress={expandBottomSheet}>
+              <Text style={styles.productName}>{scannedProduct.name}</Text>
+              <Text style={styles.brandName}>{scannedProduct.brand}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={resetScanning} style={styles.closeButton}>
+              <Ionicons name="close" size={24} color={theme.colors.gray} />
+            </TouchableOpacity>
+          </View>
+
+          <QualityScore score={scannedProduct.qualityScore} />
+
+          <View style={styles.nutrientGrid}>
+            <NutrientCard
+              label="Calories"
+              value={`${scannedProduct.nutrients.calories.value} ${scannedProduct.nutrients.calories.unit}`}
+              color={theme.colors.primary}
+            />
+            <NutrientCard
+              label="Protein"
+              value={`${scannedProduct.nutrients.protein.value}${scannedProduct.nutrients.protein.unit}`}
+              color={theme.colors.success}
+            />
+            <NutrientCard
+              label="Carbs"
+              value={`${scannedProduct.nutrients.carbs.value}${scannedProduct.nutrients.carbs.unit}`}
+              color={theme.colors.warning}
+            />
+            <NutrientCard
+              label="Fat"
+              value={`${scannedProduct.nutrients.fat.value}${scannedProduct.nutrients.fat.unit}`}
+              color={theme.colors.error}
+            />
+          </View>
+
+          {scannedProduct.healthWarnings.length > 0 && (
+            <View style={styles.warningsSection}>
+              <Text style={styles.sectionTitle}>Health Warnings</Text>
+              {scannedProduct.healthWarnings.map((warning, index) => (
+                <View key={index} style={styles.warningItem}>
+                  <Ionicons name="warning" size={16} color={theme.colors.warning} />
+                  <Text style={styles.warningText}>{warning}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {scannedProduct.benefits.length > 0 && (
+            <View style={styles.benefitsSection}>
+              <Text style={styles.sectionTitle}>Benefits</Text>
+              {scannedProduct.benefits.map((benefit, index) => (
+                <View key={index} style={styles.benefitItem}>
+                  <Ionicons name="checkmark-circle" size={16} color={theme.colors.success} />
+                  <Text style={styles.benefitText}>{benefit}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+
+          <View style={styles.buttonWrapper}>
+            <Button title="Scan Another Product" onPress={resetScanning} />
+          </View>
+        </Animated.View>
+      )}
     </View>
   );
 }
@@ -449,166 +400,206 @@ export default function ScanScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: theme.colors.background,
   },
-  cameraFallback: {
+  centerContent: {
     flex: 1,
+    alignItems: 'center',
     justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-    position: 'relative',
-  },
-  cameraFallbackText: {
-    fontSize: 16,
-    color: theme.colors.textSecondary,
-    textAlign: 'center',
-    marginTop: 20,
-    paddingHorizontal: 40,
-    fontWeight: 'bold',
-  },
-  demoInstructions: {
-    fontSize: 14,
-    color: theme.colors.textSecondary,
-    textAlign: 'center',
-    marginTop: 10,
-    paddingHorizontal: 40,
-    fontStyle: 'italic',
-  },
-  scanLine: {
-    position: 'absolute',
-    width: 200,
-    height: 2,
-    backgroundColor: theme.colors.primary,
-    top: '40%',
-  },
-  scanningText: {
-    color: theme.colors.primary,
-    fontSize: 16,
-    textAlign: 'center',
-    marginTop: 20,
-    fontWeight: '500',
-  },
-  controlsContainer: {
-    position: 'absolute',
-    bottom: 50,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
     paddingHorizontal: 20,
   },
-  scanButton: {
-    backgroundColor: theme.colors.primary,
-    paddingVertical: 15,
-    paddingHorizontal: 40,
-    borderRadius: 25,
-    minWidth: 200,
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: theme.colors.text,
+    textAlign: 'center',
+    marginTop: 20,
+    marginBottom: 10,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: theme.colors.textLight,
+    textAlign: 'center',
+    marginBottom: 30,
+    paddingHorizontal: 20,
+    lineHeight: 22,
+  },
+  errorContainer: {
+    backgroundColor: theme.colors.errorLight,
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 20,
+    width: '100%',
+  },
+  errorText: {
+    color: theme.colors.error,
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  statusContainer: {
+    backgroundColor: theme.colors.primary + '20',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 20,
+    width: '100%',
+  },
+  statusText: {
+    color: theme.colors.primary,
+    fontSize: 14,
+    textAlign: 'center',
+    fontWeight: '500',
+  },
+  inputContainer: {
+    width: '100%',
+    marginBottom: 30,
+  },
+  inputLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.colors.text,
+    marginBottom: 8,
+  },
+  barcodeInput: {
+    borderWidth: 1,
+    borderColor: theme.colors.lightGray,
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    marginBottom: 16,
+    backgroundColor: 'white',
+  },
+  sampleSection: {
+    width: '100%',
+    marginBottom: 30,
+  },
+  sampleTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.colors.text,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  sampleButtons: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 10,
+  },
+  sampleButton: {
+    backgroundColor: theme.colors.primary + '20',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: theme.colors.primary,
+  },
+  sampleButtonText: {
+    color: theme.colors.primary,
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  demoNote: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.primary + '10',
+    padding: 12,
+    borderRadius: 8,
+    width: '100%',
+  },
+  demoNoteText: {
+    fontSize: 14,
+    color: theme.colors.textLight,
+    marginLeft: 8,
+    flex: 1,
+  },
+  buttonWrapper: {
+    paddingHorizontal: 20,
+    width: '100%',
   },
   bottomSheet: {
     position: 'absolute',
     left: 0,
     right: 0,
-    height: SCREEN_HEIGHT,
+    bottom: 0,
     backgroundColor: 'white',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingHorizontal: 20,
-    paddingTop: 10,
+    paddingBottom: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
+    shadowRadius: 10,
+    minHeight: BOTTOM_SHEET_MIN_HEIGHT,
+  },
+  bottomSheetHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 15,
+    justifyContent: 'space-between',
   },
   bottomSheetHandle: {
+    position: 'absolute',
+    top: -10,
+    left: '50%',
+    marginLeft: -20,
     width: 40,
     height: 4,
-    backgroundColor: '#ccc',
+    backgroundColor: theme.colors.lightGray,
     borderRadius: 2,
-    alignSelf: 'center',
-    marginBottom: 20,
-  },
-  productContainer: {
-    flex: 1,
-    paddingBottom: 40,
-  },
-  productHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 20,
-  },
-  productInfo: {
-    flex: 1,
-    marginRight: 15,
   },
   productName: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: theme.colors.text,
-    marginBottom: 5,
-  },
-  productBrand: {
-    fontSize: 16,
-    color: theme.colors.textSecondary,
-    marginBottom: 5,
-  },
-  barcodeText: {
-    fontSize: 12,
-    color: theme.colors.textSecondary,
-    fontFamily: 'monospace',
-  },
-  sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     color: theme.colors.text,
-    marginBottom: 15,
+    flex: 1,
   },
-  nutrientsContainer: {
-    marginBottom: 25,
+  brandName: {
+    fontSize: 14,
+    color: theme.colors.textLight,
+    marginTop: 2,
   },
-  nutrientsGrid: {
+  closeButton: {
+    padding: 5,
+  },
+  nutrientGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
+    marginVertical: 15,
   },
-  warningsContainer: {
-    marginBottom: 25,
+  warningsSection: {
+    marginVertical: 15,
+  },
+  benefitsSection: {
+    marginVertical: 15,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: theme.colors.text,
+    marginBottom: 10,
   },
   warningItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   warningText: {
     fontSize: 14,
-    color: theme.colors.error,
+    color: theme.colors.text,
     marginLeft: 8,
     flex: 1,
-  },
-  benefitsContainer: {
-    marginBottom: 25,
   },
   benefitItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   benefitText: {
     fontSize: 14,
-    color: theme.colors.success,
+    color: theme.colors.text,
     marginLeft: 8,
     flex: 1,
-  },
-  closeButton: {
-    backgroundColor: theme.colors.primary,
-    paddingVertical: 15,
-    borderRadius: 10,
-    alignItems: 'center',
-    marginTop: 20,
-  },
-  closeButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
   },
 });
