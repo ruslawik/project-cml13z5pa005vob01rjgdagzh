@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, Animated, Dimensions, StyleSheet } from 'react-native';
-import { PanGestureHandler, State } from 'react-native-gesture-handler';
+import { PanGestureHandler, PanGestureHandlerStateChangeEvent, State } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 
 import Button from '../components/Button';
@@ -119,7 +119,7 @@ export default function ScanScreen() {
     { useNativeDriver: false }
   );
 
-  const onHandlerStateChange = (event: any) => {
+  const onHandlerStateChange = (event: PanGestureHandlerStateChangeEvent) => {
     const { state, translationY } = event.nativeEvent;
     
     if (state === State.BEGAN) {
@@ -264,58 +264,63 @@ export default function ScanScreen() {
                     value={scannedProduct.nutrients.sugar.value}
                     unit={scannedProduct.nutrients.sugar.unit}
                   />
+                  <NutrientCard
+                    name="Sodium"
+                    value={scannedProduct.nutrients.sodium.value}
+                    unit={scannedProduct.nutrients.sodium.unit}
+                  />
                 </View>
               </View>
 
-              <View style={styles.healthSection}>
-                {scannedProduct.healthWarnings.length > 0 && (
-                  <View style={styles.warningsSection}>
-                    <Text style={styles.sectionTitleWarning}>Health Warnings</Text>
-                    {scannedProduct.healthWarnings.map((warning, index) => (
-                      <View key={index} style={styles.warningItem}>
-                        <Ionicons 
-                          name="warning" 
-                          size={16} 
-                          color={theme.colors.warning} 
-                        />
-                        <Text style={styles.warningText}>{warning}</Text>
-                      </View>
-                    ))}
-                  </View>
-                )}
+              {/* Health warnings */}
+              {scannedProduct.healthWarnings.length > 0 && (
+                <View style={styles.warningsSection}>
+                  <Text style={[styles.sectionTitle, { color: theme.colors.danger }]}>
+                    Health Warnings
+                  </Text>
+                  {scannedProduct.healthWarnings.map((warning, index) => (
+                    <View key={index} style={styles.warningItem}>
+                      <Ionicons 
+                        name="warning" 
+                        size={16} 
+                        color={theme.colors.danger} 
+                        style={{ marginRight: 8 }} 
+                      />
+                      <Text style={styles.warningText}>{warning}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
 
-                {scannedProduct.benefits.length > 0 && (
-                  <View style={styles.benefitsSection}>
-                    <Text style={styles.sectionTitleBenefit}>Benefits</Text>
-                    {scannedProduct.benefits.map((benefit, index) => (
-                      <View key={index} style={styles.benefitItem}>
-                        <Ionicons 
-                          name="checkmark-circle" 
-                          size={16} 
-                          color={theme.colors.success} 
-                        />
-                        <Text style={styles.benefitText}>{benefit}</Text>
-                      </View>
-                    ))}
-                  </View>
-                )}
-              </View>
+              {/* Benefits */}
+              {scannedProduct.benefits.length > 0 && (
+                <View style={styles.benefitsSection}>
+                  <Text style={[styles.sectionTitle, { color: theme.colors.success }]}>
+                    Health Benefits
+                  </Text>
+                  {scannedProduct.benefits.map((benefit, index) => (
+                    <View key={index} style={styles.benefitItem}>
+                      <Ionicons 
+                        name="checkmark-circle" 
+                        size={16} 
+                        color={theme.colors.success} 
+                        style={{ marginRight: 8 }} 
+                      />
+                      <Text style={styles.benefitText}>{benefit}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
 
               <View style={styles.actionButtons}>
                 <Button
                   title="Scan Another"
-                  onPress={() => {
-                    dismissBottomSheet();
-                    setTimeout(startScanning, 300);
-                  }}
+                  onPress={dismissBottomSheet}
                   variant="outline"
-                  icon="scan"
                 />
                 <Button
-                  title="Save Product"
-                  onPress={() => {
-                    // Handle save functionality
-                  }}
+                  title="Save to History"
+                  onPress={() => {}}
                   icon="bookmark"
                 />
               </View>
@@ -330,33 +335,32 @@ export default function ScanScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: theme.colors.background,
   },
   cameraContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 20,
   },
   cameraPlaceholder: {
-    width: 300,
-    height: 300,
-    backgroundColor: '#1a1a1a',
-    borderRadius: 20,
+    flex: 1,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
     overflow: 'hidden',
   },
   cameraText: {
-    color: theme.colors.textSecondary,
     fontSize: 18,
     fontWeight: '600',
-    marginTop: 16,
+    color: theme.colors.textSecondary,
+    marginTop: 12,
   },
   cameraSubtext: {
-    color: theme.colors.textSecondary,
     fontSize: 14,
-    marginTop: 8,
+    color: theme.colors.textSecondary,
+    marginTop: 4,
     textAlign: 'center',
   },
   scanningOverlay: {
@@ -365,21 +369,22 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   scanFrame: {
-    position: 'absolute',
-    top: 20,
-    left: 20,
-    right: 20,
-    bottom: 20,
+    width: 250,
+    height: 250,
     borderWidth: 2,
     borderColor: theme.colors.primary,
     borderRadius: 12,
+    backgroundColor: 'transparent',
   },
   scanLine: {
     position: 'absolute',
-    left: 20,
-    right: 20,
+    left: '50%',
+    marginLeft: -125,
+    width: 250,
     height: 2,
     backgroundColor: theme.colors.primary,
     shadowColor: theme.colors.primary,
@@ -388,13 +393,14 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
   },
   instructionText: {
-    color: theme.colors.textSecondary,
     fontSize: 16,
-    marginTop: 32,
+    color: theme.colors.text,
     textAlign: 'center',
+    marginTop: 20,
+    marginBottom: 20,
   },
   buttonContainer: {
-    marginTop: 32,
+    marginBottom: 20,
   },
   bottomSheet: {
     position: 'absolute',
@@ -404,11 +410,12 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surface,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    paddingTop: 8,
+    paddingHorizontal: 20,
+    paddingTop: 12,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
   },
   bottomSheetHandle: {
     width: 40,
@@ -416,14 +423,13 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.textSecondary,
     borderRadius: 2,
     alignSelf: 'center',
-    marginBottom: 16,
+    marginBottom: 20,
   },
   quickInfo: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingBottom: 16,
+    paddingBottom: 20,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border,
   },
@@ -432,13 +438,13 @@ const styles = StyleSheet.create({
   },
   productNameQuick: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: '600',
     color: theme.colors.text,
   },
   productBrandQuick: {
     fontSize: 14,
     color: theme.colors.textSecondary,
-    marginTop: 4,
+    marginTop: 2,
   },
   scoreQuick: {
     flexDirection: 'row',
@@ -446,77 +452,73 @@ const styles = StyleSheet.create({
   },
   scoreValueQuick: {
     fontSize: 32,
-    fontWeight: 'bold',
+    fontWeight: '700',
     color: theme.colors.primary,
   },
   scoreMaxQuick: {
     fontSize: 16,
     color: theme.colors.textSecondary,
+    marginLeft: 2,
   },
   detailedContent: {
-    flex: 1,
-    padding: 20,
-  },
-  nutrientsSection: {
-    marginTop: 20,
+    paddingTop: 20,
+    paddingBottom: 40,
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: '600',
     color: theme.colors.text,
-    marginBottom: 16,
+    marginBottom: 12,
+  },
+  nutrientsSection: {
+    marginBottom: 24,
   },
   nutrientsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
-  },
-  healthSection: {
-    marginTop: 24,
+    justifyContent: 'space-between',
   },
   warningsSection: {
-    marginBottom: 20,
-  },
-  sectionTitleWarning: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: theme.colors.warning,
-    marginBottom: 12,
+    marginBottom: 24,
   },
   warningItem: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: '#fef2f2',
+    borderRadius: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: theme.colors.danger,
   },
   warningText: {
     flex: 1,
     fontSize: 14,
     color: theme.colors.text,
-    marginLeft: 8,
   },
   benefitsSection: {
-    marginBottom: 20,
-  },
-  sectionTitleBenefit: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: theme.colors.success,
-    marginBottom: 12,
+    marginBottom: 24,
   },
   benefitItem: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: '#f0fdf4',
+    borderRadius: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: theme.colors.success,
   },
   benefitText: {
     flex: 1,
     fontSize: 14,
     color: theme.colors.text,
-    marginLeft: 8,
   },
   actionButtons: {
     flexDirection: 'row',
     gap: 12,
-    marginTop: 24,
+    marginTop: 20,
   },
 });
