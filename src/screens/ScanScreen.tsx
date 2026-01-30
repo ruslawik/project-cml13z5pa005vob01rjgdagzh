@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, Animated, Dimensions, StyleSheet } from 'react-native';
-import { PanGestureHandler, State } from 'react-native-gesture-handler';
+import { View, Text, Animated, Dimensions, StyleSheet, PanResponder } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import Button from '../components/Button';
@@ -45,7 +44,6 @@ export default function ScanScreen() {
   const [scanningAnimation] = useState(new Animated.Value(0));
   
   const bottomSheetTranslateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
-  const lastGesture = useRef(0);
 
   const startScanning = () => {
     setIsScanning(true);
@@ -114,31 +112,37 @@ export default function ScanScreen() {
     });
   };
 
-  const onGestureEvent = Animated.event(
-    [{ nativeEvent: { translationY: bottomSheetTranslateY } }],
-    { useNativeDriver: false }
-  );
-
-  const onHandlerStateChange = (event: any) => {
-    const { state, translationY } = event.nativeEvent;
-    
-    if (state === State.BEGAN) {
-      lastGesture.current = translationY;
-    }
-    
-    if (state === State.END) {
-      const draggedDown = translationY > lastGesture.current + 50;
-      const draggedUp = translationY < lastGesture.current - 50;
+  // Replace PanGestureHandler with PanResponder for better web compatibility
+  const panResponder = PanResponder.create({
+    onMoveShouldSetPanResponder: (evt, gestureState) => {
+      return Math.abs(gestureState.dy) > 10;
+    },
+    onPanResponderGrant: (evt, gestureState) => {
+      // Start gesture
+    },
+    onPanResponderMove: (evt, gestureState) => {
+      const newValue = (SCREEN_HEIGHT - BOTTOM_SHEET_MIN_HEIGHT) + gestureState.dy;
+      bottomSheetTranslateY.setValue(Math.max(
+        SCREEN_HEIGHT - BOTTOM_SHEET_MAX_HEIGHT,
+        Math.min(SCREEN_HEIGHT, newValue)
+      ));
+    },
+    onPanResponderRelease: (evt, gestureState) => {
+      const { dy, vy } = gestureState;
       
-      if (draggedDown && translationY > SCREEN_HEIGHT * 0.3) {
-        dismissBottomSheet();
-      } else if (draggedUp) {
+      if (dy > 100 || vy > 0.5) {
+        if (dy > SCREEN_HEIGHT * 0.3) {
+          dismissBottomSheet();
+        } else {
+          collapseBottomSheet();
+        }
+      } else if (dy < -100 || vy < -0.5) {
         expandBottomSheet();
       } else {
         collapseBottomSheet();
       }
-    }
-  };
+    },
+  });
 
   useEffect(() => {
     if (!isScanning && !scannedProduct) {
@@ -200,107 +204,122 @@ export default function ScanScreen() {
 
       {/* Bottom Sheet */}
       {scannedProduct && (
-        <PanGestureHandler
-          onGestureEvent={onGestureEvent}
-          onHandlerStateChange={onHandlerStateChange}
+        <Animated.View 
+          style={[
+            styles.bottomSheet,
+            {
+              transform: [{ translateY: bottomSheetTranslateY }],
+            }
+          ]}
+          {...panResponder.panHandlers}
         >
-          <Animated.View 
-            style={[
-              styles.bottomSheet,
-              {
-                transform: [{ translateY: bottomSheetTranslateY }],
-              }
-            ]}
-          >
-            {/* Handle */}
-            <View style={styles.bottomSheetHandle} />
-            
-            {/* Quick info */}
-            <View style={styles.quickInfo}>
-              <View style={styles.productQuickInfo}>
-                <Text style={styles.productNameQuick}>{scannedProduct.name}</Text>
-                <Text style={styles.productBrandQuick}>{scannedProduct.brand}</Text>
-              </View>
-              <View style={styles.scoreQuick}>
-                <Text style={styles.scoreValueQuick}>{scannedProduct.qualityScore}</Text>
-                <Text style={styles.scoreMaxQuick}>/100</Text>
-              </View>
+          {/* Handle */}
+          <View style={styles.bottomSheetHandle} />
+          
+          {/* Quick info */}
+          <View style={styles.quickInfo}>
+            <View style={styles.productQuickInfo}>
+              <Text style={styles.productNameQuick}>{scannedProduct.name}</Text>
+              <Text style={styles.productBrandQuick}>{scannedProduct.brand}</Text>
             </View>
+            <View style={styles.scoreQuick}>
+              <Text style={styles.scoreValueQuick}>{scannedProduct.qualityScore}</Text>
+              <Text style={styles.scoreMaxQuick}>/100</Text>
+            </View>
+          </View>
 
-            {/* Detailed content */}
-            <View style={styles.detailedContent}>
-              <QualityScore score={scannedProduct.qualityScore} />
+          {/* Detailed content */}
+          <View style={styles.detailedContent}>
+            <QualityScore score={scannedProduct.qualityScore} />
 
-              <View style={styles.nutrientsSection}>
-                <Text style={styles.sectionTitle}>Nutrients (per 100g)</Text>
-                <View style={styles.nutrientsGrid}>
-                  <NutrientCard
-                    name="Calories"
-                    value={scannedProduct.nutrients.calories.value}
-                    unit={scannedProduct.nutrients.calories.unit}
-                  />
-                  <NutrientCard
-                    name="Protein"
-                    value={scannedProduct.nutrients.protein.value}
-                    unit={scannedProduct.nutrients.protein.unit}
-                  />
-                  <NutrientCard
-                    name="Carbs"
-                    value={scannedProduct.nutrients.carbs.value}
-                    unit={scannedProduct.nutrients.carbs.unit}
-                  />
-                  <NutrientCard
-                    name="Fat"
-                    value={scannedProduct.nutrients.fat.value}
-                    unit={scannedProduct.nutrients.fat.unit}
-                  />
-                  <NutrientCard
-                    name="Fiber"
-                    value={scannedProduct.nutrients.fiber.value}
-                    unit={scannedProduct.nutrients.fiber.unit}
-                  />
-                  <NutrientCard
-                    name="Sugar"
-                    value={scannedProduct.nutrients.sugar.value}
-                    unit={scannedProduct.nutrients.sugar.unit}
-                  />
-                </View>
-              </View>
-
-              {scannedProduct.healthWarnings.length > 0 && (
-                <View style={styles.warningsSection}>
-                  <Text style={styles.sectionTitle}>Health Warnings</Text>
-                  {scannedProduct.healthWarnings.map((warning, index) => (
-                    <View key={index} style={styles.warningItem}>
-                      <Ionicons name="warning" size={16} color={theme.colors.warning} />
-                      <Text style={styles.warningText}>{warning}</Text>
-                    </View>
-                  ))}
-                </View>
-              )}
-
-              {scannedProduct.benefits.length > 0 && (
-                <View style={styles.benefitsSection}>
-                  <Text style={styles.sectionTitle}>Benefits</Text>
-                  {scannedProduct.benefits.map((benefit, index) => (
-                    <View key={index} style={styles.benefitItem}>
-                      <Ionicons name="checkmark-circle" size={16} color={theme.colors.success} />
-                      <Text style={styles.benefitText}>{benefit}</Text>
-                    </View>
-                  ))}
-                </View>
-              )}
-
-              <View style={styles.actions}>
-                <Button
-                  title="Scan Another"
-                  onPress={dismissBottomSheet}
-                  variant="outline"
+            <View style={styles.nutrientsSection}>
+              <Text style={styles.sectionTitle}>Nutrients (per 100g)</Text>
+              <View style={styles.nutrientsGrid}>
+                <NutrientCard
+                  name="Calories"
+                  value={scannedProduct.nutrients.calories.value}
+                  unit={scannedProduct.nutrients.calories.unit}
+                />
+                <NutrientCard
+                  name="Protein"
+                  value={scannedProduct.nutrients.protein.value}
+                  unit={scannedProduct.nutrients.protein.unit}
+                />
+                <NutrientCard
+                  name="Carbs"
+                  value={scannedProduct.nutrients.carbs.value}
+                  unit={scannedProduct.nutrients.carbs.unit}
+                />
+                <NutrientCard
+                  name="Fat"
+                  value={scannedProduct.nutrients.fat.value}
+                  unit={scannedProduct.nutrients.fat.unit}
+                />
+                <NutrientCard
+                  name="Fiber"
+                  value={scannedProduct.nutrients.fiber.value}
+                  unit={scannedProduct.nutrients.fiber.unit}
+                />
+                <NutrientCard
+                  name="Sugar"
+                  value={scannedProduct.nutrients.sugar.value}
+                  unit={scannedProduct.nutrients.sugar.unit}
                 />
               </View>
             </View>
-          </Animated.View>
-        </PanGestureHandler>
+
+            {/* Health Warnings */}
+            {scannedProduct.healthWarnings.length > 0 && (
+              <View style={styles.warningsSection}>
+                <Text style={styles.sectionTitle}>Health Warnings</Text>
+                {scannedProduct.healthWarnings.map((warning, index) => (
+                  <View key={index} style={styles.warningItem}>
+                    <Ionicons 
+                      name="warning" 
+                      size={16} 
+                      color={theme.colors.error} 
+                    />
+                    <Text style={styles.warningText}>{warning}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+
+            {/* Benefits */}
+            {scannedProduct.benefits.length > 0 && (
+              <View style={styles.benefitsSection}>
+                <Text style={styles.sectionTitle}>Health Benefits</Text>
+                {scannedProduct.benefits.map((benefit, index) => (
+                  <View key={index} style={styles.benefitItem}>
+                    <Ionicons 
+                      name="checkmark-circle" 
+                      size={16} 
+                      color={theme.colors.success} 
+                    />
+                    <Text style={styles.benefitText}>{benefit}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+
+            <View style={styles.actionButtons}>
+              <Button
+                title="Scan Another"
+                onPress={() => {
+                  dismissBottomSheet();
+                  setTimeout(startScanning, 500);
+                }}
+                variant="outline"
+              />
+              <Button
+                title="Save Product"
+                onPress={() => {
+                  // TODO: Implement save functionality
+                }}
+              />
+            </View>
+          </View>
+        </Animated.View>
       )}
     </View>
   );
@@ -318,43 +337,46 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   cameraPlaceholder: {
-    width: 300,
+    width: '100%',
     height: 300,
-    backgroundColor: '#f0f0f0',
-    borderRadius: 12,
+    backgroundColor: theme.colors.cardBackground,
+    borderRadius: theme.borderRadius.large,
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 2,
+    borderColor: theme.colors.border,
+    borderStyle: 'dashed',
     position: 'relative',
-    marginBottom: 20,
+    overflow: 'hidden',
   },
   cameraText: {
     fontSize: 18,
     fontWeight: '600',
-    color: theme.colors.textSecondary,
-    marginTop: 16,
+    color: theme.colors.textPrimary,
+    marginTop: 10,
   },
   cameraSubtext: {
     fontSize: 14,
     color: theme.colors.textSecondary,
+    marginTop: 5,
     textAlign: 'center',
-    marginTop: 8,
   },
   scanningOverlay: {
     position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    justifyContent: 'center',
-    alignItems: 'center',
+    top: 20,
+    left: 20,
+    right: 20,
+    bottom: 20,
   },
   scanFrame: {
-    width: 200,
-    height: 200,
+    position: 'absolute',
+    top: 50,
+    left: 50,
+    right: 50,
+    bottom: 50,
     borderWidth: 2,
     borderColor: theme.colors.primary,
     borderRadius: 8,
-    position: 'absolute',
   },
   scanLine: {
     position: 'absolute',
@@ -362,50 +384,50 @@ const styles = StyleSheet.create({
     right: 50,
     height: 2,
     backgroundColor: theme.colors.primary,
-    opacity: 0.8,
   },
   instructionText: {
     fontSize: 16,
-    color: theme.colors.textPrimary,
+    color: theme.colors.textSecondary,
     textAlign: 'center',
+    marginTop: 20,
     marginBottom: 20,
   },
   buttonContainer: {
     width: '100%',
-    paddingHorizontal: 20,
+    paddingHorizontal: 40,
   },
   bottomSheet: {
     position: 'absolute',
     left: 0,
     right: 0,
-    bottom: 0,
-    backgroundColor: 'white',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-    elevation: 5,
+    height: SCREEN_HEIGHT,
+    backgroundColor: theme.colors.cardBackground,
+    borderTopLeftRadius: theme.borderRadius.large,
+    borderTopRightRadius: theme.borderRadius.large,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
+    shadowOffset: {
+      width: 0,
+      height: -2,
+    },
     shadowOpacity: 0.25,
-    shadowRadius: 10,
+    shadowRadius: 8,
+    elevation: 16,
   },
   bottomSheetHandle: {
     width: 40,
     height: 4,
-    backgroundColor: '#ddd',
-    borderRadius: 2,
+    backgroundColor: theme.colors.border,
     alignSelf: 'center',
     marginTop: 8,
     marginBottom: 16,
+    borderRadius: 2,
   },
   quickInfo: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    paddingHorizontal: 20,
+    paddingBottom: 20,
   },
   productQuickInfo: {
     flex: 1,
@@ -421,8 +443,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   scoreQuick: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
+    alignItems: 'center',
   },
   scoreValueQuick: {
     fontSize: 24,
@@ -430,29 +451,29 @@ const styles = StyleSheet.create({
     color: theme.colors.primary,
   },
   scoreMaxQuick: {
-    fontSize: 14,
+    fontSize: 12,
     color: theme.colors.textSecondary,
-    marginLeft: 2,
   },
   detailedContent: {
-    paddingTop: 16,
+    flex: 1,
+    paddingHorizontal: 20,
   },
   nutrientsSection: {
     marginTop: 20,
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '600',
     color: theme.colors.textPrimary,
-    marginBottom: 12,
+    marginBottom: 15,
   },
   nutrientsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    gap: 10,
   },
   warningsSection: {
-    marginTop: 24,
+    marginTop: 20,
   },
   warningItem: {
     flexDirection: 'row',
@@ -466,7 +487,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   benefitsSection: {
-    marginTop: 24,
+    marginTop: 20,
   },
   benefitItem: {
     flexDirection: 'row',
@@ -479,8 +500,10 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     flex: 1,
   },
-  actions: {
-    marginTop: 32,
-    gap: 12,
+  actionButtons: {
+    flexDirection: 'row',
+    gap: 15,
+    marginTop: 30,
+    marginBottom: 30,
   },
 });
