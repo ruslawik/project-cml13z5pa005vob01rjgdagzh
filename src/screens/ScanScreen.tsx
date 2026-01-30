@@ -44,12 +44,13 @@ export default function ScanScreen() {
   const [scanningAnimation] = useState(new Animated.Value(0));
   
   const bottomSheetTranslateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
+  const scanningAnimationRef = useRef<Animated.CompositeAnimation | null>(null);
 
   const startScanning = () => {
     setIsScanning(true);
     
-    // Animate scanning indicator
-    Animated.loop(
+    // Create and store the animation reference
+    const loopAnimation = Animated.loop(
       Animated.sequence([
         Animated.timing(scanningAnimation, {
           toValue: 1,
@@ -62,14 +63,22 @@ export default function ScanScreen() {
           useNativeDriver: false,
         }),
       ])
-    ).start();
+    );
+    
+    scanningAnimationRef.current = loopAnimation;
+    loopAnimation.start();
 
     // Simulate finding a product after random time
     const scanTime = Math.random() * 3000 + 2000; // 2-5 seconds
     setTimeout(() => {
       setScannedProduct(mockProductData);
       showBottomSheet();
-      Animated.loop().stop();
+      
+      // Stop the animation safely with null check
+      if (scanningAnimationRef.current) {
+        scanningAnimationRef.current.stop();
+        scanningAnimationRef.current = null;
+      }
       scanningAnimation.setValue(0);
     }, scanTime);
   };
@@ -148,6 +157,14 @@ export default function ScanScreen() {
     if (!isScanning && !scannedProduct) {
       startScanning();
     }
+
+    // Cleanup function to stop animation on unmount
+    return () => {
+      if (scanningAnimationRef.current) {
+        scanningAnimationRef.current.stop();
+        scanningAnimationRef.current = null;
+      }
+    };
   }, []);
 
   const scanLinePosition = scanningAnimation.interpolate({
@@ -269,16 +286,12 @@ export default function ScanScreen() {
             </View>
 
             {/* Health Warnings */}
-            {scannedProduct.healthWarnings.length > 0 && (
-              <View style={styles.warningsSection}>
+            {scannedProduct.healthWarnings && scannedProduct.healthWarnings.length > 0 && (
+              <View style={styles.section}>
                 <Text style={styles.sectionTitle}>Health Warnings</Text>
                 {scannedProduct.healthWarnings.map((warning, index) => (
                   <View key={index} style={styles.warningItem}>
-                    <Ionicons 
-                      name="warning" 
-                      size={16} 
-                      color={theme.colors.error} 
-                    />
+                    <Ionicons name="warning" size={16} color={theme.colors.warning} />
                     <Text style={styles.warningText}>{warning}</Text>
                   </View>
                 ))}
@@ -286,36 +299,26 @@ export default function ScanScreen() {
             )}
 
             {/* Benefits */}
-            {scannedProduct.benefits.length > 0 && (
-              <View style={styles.benefitsSection}>
+            {scannedProduct.benefits && scannedProduct.benefits.length > 0 && (
+              <View style={styles.section}>
                 <Text style={styles.sectionTitle}>Health Benefits</Text>
                 {scannedProduct.benefits.map((benefit, index) => (
                   <View key={index} style={styles.benefitItem}>
-                    <Ionicons 
-                      name="checkmark-circle" 
-                      size={16} 
-                      color={theme.colors.success} 
-                    />
+                    <Ionicons name="checkmark-circle" size={16} color={theme.colors.success} />
                     <Text style={styles.benefitText}>{benefit}</Text>
                   </View>
                 ))}
               </View>
             )}
 
+            {/* Action buttons */}
             <View style={styles.actionButtons}>
               <Button
                 title="Scan Another"
                 onPress={() => {
                   dismissBottomSheet();
-                  setTimeout(startScanning, 500);
                 }}
-                variant="outline"
-              />
-              <Button
-                title="Save Product"
-                onPress={() => {
-                  // TODO: Implement save functionality
-                }}
+                style={styles.actionButton}
               />
             </View>
           </View>
@@ -337,105 +340,97 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   cameraPlaceholder: {
-    width: '100%',
+    width: 300,
     height: 300,
-    backgroundColor: theme.colors.cardBackground,
-    borderRadius: theme.borderRadius.large,
+    backgroundColor: theme.colors.surface,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 2,
-    borderColor: theme.colors.border,
-    borderStyle: 'dashed',
     position: 'relative',
-    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   cameraText: {
     fontSize: 18,
-    fontWeight: '600',
-    color: theme.colors.textPrimary,
-    marginTop: 10,
+    fontWeight: 'bold',
+    color: theme.colors.text,
+    marginTop: 12,
   },
   cameraSubtext: {
     fontSize: 14,
     color: theme.colors.textSecondary,
-    marginTop: 5,
+    marginTop: 8,
     textAlign: 'center',
   },
   scanningOverlay: {
-    position: 'absolute',
-    top: 20,
-    left: 20,
-    right: 20,
-    bottom: 20,
-  },
-  scanFrame: {
     position: 'absolute',
     top: 50,
     left: 50,
     right: 50,
     bottom: 50,
+  },
+  scanFrame: {
+    flex: 1,
     borderWidth: 2,
     borderColor: theme.colors.primary,
-    borderRadius: 8,
+    borderRadius: 10,
   },
   scanLine: {
     position: 'absolute',
-    left: 50,
-    right: 50,
+    left: 0,
+    right: 0,
     height: 2,
     backgroundColor: theme.colors.primary,
+    opacity: 0.8,
   },
   instructionText: {
     fontSize: 16,
-    color: theme.colors.textSecondary,
+    color: theme.colors.text,
+    marginTop: 24,
     textAlign: 'center',
-    marginTop: 20,
-    marginBottom: 20,
   },
   buttonContainer: {
+    marginTop: 32,
     width: '100%',
-    paddingHorizontal: 40,
+    alignItems: 'center',
   },
   bottomSheet: {
     position: 'absolute',
     left: 0,
     right: 0,
-    height: SCREEN_HEIGHT,
-    backgroundColor: theme.colors.cardBackground,
-    borderTopLeftRadius: theme.borderRadius.large,
-    borderTopRightRadius: theme.borderRadius.large,
+    top: 0,
+    backgroundColor: theme.colors.surface,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
     shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: -2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 16,
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   bottomSheetHandle: {
     width: 40,
     height: 4,
-    backgroundColor: theme.colors.border,
+    backgroundColor: theme.colors.textSecondary,
     alignSelf: 'center',
     marginTop: 8,
-    marginBottom: 16,
     borderRadius: 2,
   },
   quickInfo: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingBottom: 20,
+    padding: 20,
+    paddingBottom: 10,
   },
   productQuickInfo: {
     flex: 1,
   },
   productNameQuick: {
     fontSize: 18,
-    fontWeight: '600',
-    color: theme.colors.textPrimary,
+    fontWeight: 'bold',
+    color: theme.colors.text,
   },
   productBrandQuick: {
     fontSize: 14,
@@ -443,37 +438,39 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   scoreQuick: {
-    alignItems: 'center',
+    flexDirection: 'row',
+    alignItems: 'baseline',
   },
   scoreValueQuick: {
-    fontSize: 24,
+    fontSize: 32,
     fontWeight: 'bold',
     color: theme.colors.primary,
   },
   scoreMaxQuick: {
-    fontSize: 12,
+    fontSize: 16,
     color: theme.colors.textSecondary,
+    marginLeft: 2,
   },
   detailedContent: {
-    flex: 1,
     paddingHorizontal: 20,
+    paddingBottom: 20,
   },
   nutrientsSection: {
-    marginTop: 20,
+    marginVertical: 20,
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: '600',
-    color: theme.colors.textPrimary,
-    marginBottom: 15,
+    fontWeight: 'bold',
+    color: theme.colors.text,
+    marginBottom: 12,
   },
   nutrientsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
+    gap: 8,
   },
-  warningsSection: {
-    marginTop: 20,
+  section: {
+    marginVertical: 16,
   },
   warningItem: {
     flexDirection: 'row',
@@ -481,13 +478,10 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   warningText: {
-    fontSize: 14,
-    color: theme.colors.textPrimary,
-    marginLeft: 8,
     flex: 1,
-  },
-  benefitsSection: {
-    marginTop: 20,
+    fontSize: 14,
+    color: theme.colors.text,
+    marginLeft: 8,
   },
   benefitItem: {
     flexDirection: 'row',
@@ -495,15 +489,16 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   benefitText: {
-    fontSize: 14,
-    color: theme.colors.textPrimary,
-    marginLeft: 8,
     flex: 1,
+    fontSize: 14,
+    color: theme.colors.text,
+    marginLeft: 8,
   },
   actionButtons: {
-    flexDirection: 'row',
-    gap: 15,
-    marginTop: 30,
-    marginBottom: 30,
+    marginTop: 20,
+    gap: 12,
+  },
+  actionButton: {
+    marginBottom: 0,
   },
 });
