@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, Animated, Dimensions, StyleSheet, PanResponder, Alert, TouchableOpacity } from 'react-native';
+import { View, Text, Animated, Dimensions, StyleSheet, PanResponder, Alert, TouchableOpacity, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import Button from '../components/Button';
@@ -82,9 +82,14 @@ export default function ScanScreen() {
   const [scanningAnimation] = useState(new Animated.Value(0));
   const [error, setError] = useState<string | null>(null);
   const [scanningStatus, setScanningStatus] = useState<string>('');
+  const [isWebPlatform, setIsWebPlatform] = useState(false);
   
   const bottomSheetTranslateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const scanningAnimationRef = useRef<Animated.CompositeAnimation | null>(null);
+
+  useEffect(() => {
+    setIsWebPlatform(Platform.OS === 'web');
+  }, []);
 
   const handleApiResponse = (response: ApiResponse | null | undefined): ProductInfo | null => {
     if (!response) {
@@ -103,8 +108,8 @@ export default function ScanScreen() {
 
   const simulateRealScanning = (): Promise<ApiResponse> => {
     return new Promise((resolve) => {
-      // Simulate the scanning process with status updates
-      setScanningStatus('Initializing camera...');
+      // Simulate the real camera scanning process
+      setScanningStatus('Simulating barcode scan...');
       
       setTimeout(() => {
         setScanningStatus('Looking for barcode...');
@@ -133,7 +138,7 @@ export default function ScanScreen() {
   const startScanning = async () => {
     setIsScanning(true);
     setError(null);
-    setScanningStatus('Starting scan...');
+    setScanningStatus('Starting demo scan...');
     
     // Create and store the animation reference
     const loopAnimation = Animated.loop(
@@ -265,163 +270,147 @@ export default function ScanScreen() {
     };
   }, []);
 
+  const renderCameraView = () => {
+    return (
+      <View style={styles.cameraPlaceholder}>
+        <View style={styles.demoInfo}>
+          <Ionicons name="camera" size={64} color={theme.colors.primary} />
+          <Text style={styles.demoText}>Demo Mode</Text>
+          <Text style={styles.demoSubtext}>
+            {isWebPlatform 
+              ? 'Camera scanning simulated for Expo Snack demo'
+              : 'Barcode scanning demo - in production, this would use real camera'}
+          </Text>
+        </View>
+      </View>
+    );
+  };
+
   const scanLinePosition = scanningAnimation.interpolate({
     inputRange: [0, 1],
-    outputRange: [20, 280],
+    outputRange: [50, SCREEN_HEIGHT * 0.6 - 150],
   });
 
   return (
     <View style={styles.container}>
-      {/* Enhanced Camera Simulation */}
-      <TouchableOpacity 
-        style={styles.cameraContainer}
-        onPress={!isScanning && !scannedProduct ? startScanning : undefined}
-        activeOpacity={0.8}
-      >
-        <View style={styles.cameraPlaceholder}>
-          {!isScanning && !scannedProduct && (
-            <>
-              <Ionicons 
-                name="camera" 
-                size={80} 
-                color={theme.colors.textSecondary} 
-              />
-              <Text style={styles.cameraText}>Camera Simulation for Expo Snack</Text>
-              <Text style={styles.cameraSubtext}>
-                Tap to start realistic barcode scanning simulation
-              </Text>
-              <Text style={styles.noteText}>
-                📱 For real camera: download the Expo Go app and run on device
-              </Text>
-            </>
-          )}
-          
-          {/* Enhanced scanning overlay with status */}
-          <View style={styles.scanningOverlay}>
-            <View style={styles.scanFrame} />
-            
-            {/* Corner guides */}
-            <View style={[styles.corner, styles.topLeft]} />
-            <View style={[styles.corner, styles.topRight]} />
-            <View style={[styles.corner, styles.bottomLeft]} />
-            <View style={[styles.corner, styles.bottomRight]} />
+      {renderCameraView()}
+
+      {/* Scanning overlay */}
+      <View style={styles.overlay}>
+        {/* Top overlay */}
+        <View style={styles.overlayTop} />
+        
+        {/* Middle section with scanning frame */}
+        <View style={styles.overlayMiddle}>
+          <View style={styles.overlayLeft} />
+          <View style={styles.scanningFrame}>
+            <View style={styles.frameCorner} />
+            <View style={[styles.frameCorner, styles.topRight]} />
+            <View style={[styles.frameCorner, styles.bottomLeft]} />
+            <View style={[styles.frameCorner, styles.bottomRight]} />
             
             {isScanning && (
-              <>
-                <Animated.View 
-                  style={[
-                    styles.scanLine, 
-                    { top: scanLinePosition }
-                  ]} 
-                />
-                <View style={styles.statusContainer}>
-                  <Text style={styles.statusText}>{scanningStatus}</Text>
-                  <View style={styles.loadingDots}>
-                    <Animated.View style={[styles.dot, { opacity: scanningAnimation }]} />
-                    <Animated.View style={[styles.dot, { opacity: scanningAnimation }]} />
-                    <Animated.View style={[styles.dot, { opacity: scanningAnimation }]} />
-                  </View>
-                </View>
-              </>
+              <Animated.View 
+                style={[
+                  styles.scanLine, 
+                  { transform: [{ translateY: scanLinePosition }] }
+                ]} 
+              />
             )}
           </View>
-
-          {isScanning && (
-            <View style={styles.instructionsContainer}>
-              <Text style={styles.instructionText}>
-                🎯 Hold steady and center the barcode
-              </Text>
-            </View>
-          )}
+          <View style={styles.overlayRight} />
         </View>
-      </TouchableOpacity>
+        
+        {/* Bottom overlay */}
+        <View style={styles.overlayBottom} />
+      </View>
 
-      {!isScanning && !scannedProduct && (
-        <View style={styles.actionsContainer}>
-          <Button
-            title="Start Scanning"
-            onPress={startScanning}
-            variant="primary"
-            icon="scan"
-          />
-          
-          <Text style={styles.infoText}>
-            💡 This is a realistic simulation optimized for Expo Snack. 
-            For actual camera scanning, you need to download Expo Go app on a real device.
-          </Text>
-        </View>
-      )}
-
-      {/* Bottom Sheet */}
-      <Animated.View 
-        style={[
-          styles.bottomSheet,
-          { transform: [{ translateY: bottomSheetTranslateY }] }
-        ]}
-        {...panResponder.panHandlers}
-      >
-        <View style={styles.bottomSheetHeader}>
-          <View style={styles.handle} />
-          <TouchableOpacity 
-            style={styles.closeButton}
-            onPress={dismissBottomSheet}
-          >
-            <Ionicons name="close" size={24} color={theme.colors.textSecondary} />
-          </TouchableOpacity>
-        </View>
-
-        {scannedProduct && (
-          <View style={styles.bottomSheetContent}>
-            <View style={styles.productHeader}>
-              <Text style={styles.productName}>{scannedProduct.name}</Text>
-              <Text style={styles.productBrand}>{scannedProduct.brand}</Text>
-              <Text style={styles.barcodeText}>Barcode: {scannedProduct.barcode}</Text>
-            </View>
-
-            <QualityScore score={scannedProduct.qualityScore} />
-            
-            <Text style={styles.sectionTitle}>Nutrition Facts</Text>
-            <View style={styles.nutrientsGrid}>
-              {Object.entries(scannedProduct.nutrients).map(([key, nutrient]) => (
-                <NutrientCard
-                  key={key}
-                  name={key.charAt(0).toUpperCase() + key.slice(1)}
-                  value={nutrient.value}
-                  unit={nutrient.unit}
-                  per={nutrient.per}
-                />
-              ))}
-            </View>
-
-            {scannedProduct.healthWarnings.length > 0 && (
-              <>
-                <Text style={[styles.sectionTitle, styles.warningTitle]}>⚠️ Health Warnings</Text>
-                {scannedProduct.healthWarnings.map((warning, index) => (
-                  <Text key={index} style={styles.warningText}>• {warning}</Text>
-                ))}
-              </>
-            )}
-
-            {scannedProduct.benefits.length > 0 && (
-              <>
-                <Text style={[styles.sectionTitle, styles.benefitTitle]}>✅ Benefits</Text>
-                {scannedProduct.benefits.map((benefit, index) => (
-                  <Text key={index} style={styles.benefitText}>• {benefit}</Text>
-                ))}
-              </>
-            )}
-
-            <View style={styles.bottomSheetActions}>
-              <Button
-                title="Scan Another"
-                onPress={dismissBottomSheet}
-                variant="outline"
-                style={styles.actionButton}
-              />
-            </View>
+      {/* Status and controls */}
+      <View style={styles.statusContainer}>
+        {scanningStatus !== '' && (
+          <View style={styles.statusTextContainer}>
+            <Text style={styles.statusText}>{scanningStatus}</Text>
           </View>
         )}
-      </Animated.View>
+
+        {!isScanning && (
+          <Button
+            title="Start Demo Scan"
+            onPress={startScanning}
+            style={styles.scanButton}
+          />
+        )}
+
+        {isScanning && (
+          <Button
+            title="Cancel"
+            onPress={() => {
+              if (scanningAnimationRef.current) {
+                scanningAnimationRef.current.stop();
+                scanningAnimationRef.current = null;
+              }
+              setIsScanning(false);
+              setScanningStatus('');
+              scanningAnimation.setValue(0);
+            }}
+            variant="secondary"
+            style={styles.cancelButton}
+          />
+        )}
+      </View>
+
+      {/* Bottom sheet for scanned product */}
+      {scannedProduct && (
+        <Animated.View
+          style={[
+            styles.bottomSheet,
+            { transform: [{ translateY: bottomSheetTranslateY }] }
+          ]}
+          {...panResponder.panHandlers}
+        >
+          <View style={styles.bottomSheetHandle} />
+          
+          <View style={styles.productHeader}>
+            <View style={styles.productInfo}>
+              <Text style={styles.productName}>{scannedProduct.name}</Text>
+              <Text style={styles.productBrand}>{scannedProduct.brand}</Text>
+            </View>
+            <QualityScore score={scannedProduct.qualityScore} size="small" />
+            <TouchableOpacity onPress={dismissBottomSheet} style={styles.closeButton}>
+              <Ionicons name="close" size={24} color={theme.colors.textSecondary} />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.nutrientGrid}>
+            {Object.entries(scannedProduct.nutrients).map(([key, nutrient]) => (
+              <NutrientCard
+                key={key}
+                title={key.charAt(0).toUpperCase() + key.slice(1)}
+                value={`${nutrient.value}${nutrient.unit}`}
+                subtitle={`per ${nutrient.per}`}
+              />
+            ))}
+          </View>
+
+          {scannedProduct.healthWarnings.length > 0 && (
+            <View style={styles.warningsSection}>
+              <Text style={styles.sectionTitle}>⚠️ Health Warnings</Text>
+              {scannedProduct.healthWarnings.map((warning, index) => (
+                <Text key={index} style={styles.warningText}>• {warning}</Text>
+              ))}
+            </View>
+          )}
+
+          {scannedProduct.benefits.length > 0 && (
+            <View style={styles.benefitsSection}>
+              <Text style={styles.sectionTitle}>✅ Benefits</Text>
+              {scannedProduct.benefits.map((benefit, index) => (
+                <Text key={index} style={styles.benefitText}>• {benefit}</Text>
+              ))}
+            </View>
+          )}
+        </Animated.View>
+      )}
     </View>
   );
 }
@@ -429,96 +418,106 @@ export default function ScanScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
-  },
-  cameraContainer: {
-    flex: 1,
-    position: 'relative',
+    backgroundColor: theme.colors.background,
   },
   cameraPlaceholder: {
     flex: 1,
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#000',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
   },
-  cameraText: {
-    color: theme.colors.textSecondary,
-    fontSize: 18,
+  demoInfo: {
+    alignItems: 'center',
+    padding: 30,
+  },
+  demoText: {
+    color: '#fff',
+    fontSize: 20,
     fontWeight: '600',
     marginTop: 16,
-    textAlign: 'center',
+    marginBottom: 12,
   },
-  cameraSubtext: {
-    color: theme.colors.textSecondary,
+  demoSubtext: {
+    color: '#ccc',
     fontSize: 14,
     textAlign: 'center',
-    marginTop: 8,
-    opacity: 0.8,
+    lineHeight: 20,
   },
-  noteText: {
-    color: theme.colors.primary,
-    fontSize: 12,
-    textAlign: 'center',
-    marginTop: 16,
-    fontStyle: 'italic',
-  },
-  scanningOverlay: {
+  overlay: {
     position: 'absolute',
-    top: '30%',
-    left: '10%',
-    right: '10%',
-    height: 300,
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
-  scanFrame: {
+  overlayTop: {
     flex: 1,
-    borderWidth: 2,
-    borderColor: theme.colors.primary,
-    backgroundColor: 'transparent',
-    borderRadius: 12,
+    backgroundColor: 'rgba(0,0,0,0.6)',
   },
-  corner: {
+  overlayMiddle: {
+    height: 300,
+    flexDirection: 'row',
+  },
+  overlayLeft: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+  },
+  overlayRight: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+  },
+  overlayBottom: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+  },
+  scanningFrame: {
+    width: 250,
+    height: 250,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  frameCorner: {
     position: 'absolute',
-    width: 20,
-    height: 20,
-    borderColor: '#fff',
-    borderWidth: 3,
-  },
-  topLeft: {
-    top: -2,
-    left: -2,
-    borderRightWidth: 0,
-    borderBottomWidth: 0,
-    borderTopLeftRadius: 12,
+    width: 30,
+    height: 30,
+    borderColor: theme.colors.primary,
+    top: 10,
+    left: 10,
+    borderTopWidth: 3,
+    borderLeftWidth: 3,
   },
   topRight: {
-    top: -2,
-    right: -2,
+    top: 10,
+    right: 10,
+    left: 'auto',
+    borderTopWidth: 3,
+    borderRightWidth: 3,
     borderLeftWidth: 0,
-    borderBottomWidth: 0,
-    borderTopRightRadius: 12,
   },
   bottomLeft: {
-    bottom: -2,
-    left: -2,
-    borderRightWidth: 0,
+    bottom: 10,
+    left: 10,
+    top: 'auto',
+    borderBottomWidth: 3,
+    borderLeftWidth: 3,
     borderTopWidth: 0,
-    borderBottomLeftRadius: 12,
   },
   bottomRight: {
-    bottom: -2,
-    right: -2,
-    borderLeftWidth: 0,
+    bottom: 10,
+    right: 10,
+    top: 'auto',
+    left: 'auto',
+    borderBottomWidth: 3,
+    borderRightWidth: 3,
     borderTopWidth: 0,
-    borderBottomRightRadius: 12,
+    borderLeftWidth: 0,
   },
   scanLine: {
     position: 'absolute',
-    left: 0,
-    right: 0,
-    height: 3,
+    left: 20,
+    right: 20,
+    height: 2,
     backgroundColor: theme.colors.primary,
-    borderRadius: 1.5,
     shadowColor: theme.colors.primary,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.8,
@@ -526,153 +525,104 @@ const styles = StyleSheet.create({
   },
   statusContainer: {
     position: 'absolute',
-    bottom: -60,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-  },
-  statusText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '500',
-    textAlign: 'center',
-  },
-  loadingDots: {
-    flexDirection: 'row',
-    marginTop: 8,
-  },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: theme.colors.primary,
-    marginHorizontal: 3,
-  },
-  instructionsContainer: {
-    position: 'absolute',
     bottom: 100,
     left: 20,
     right: 20,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    borderRadius: 8,
-    padding: 12,
+    alignItems: 'center',
   },
-  instructionText: {
+  statusTextContainer: {
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginBottom: 20,
+  },
+  statusText: {
     color: '#fff',
     fontSize: 14,
     textAlign: 'center',
   },
-  actionsContainer: {
-    position: 'absolute',
-    bottom: 80,
-    left: 20,
-    right: 20,
-    alignItems: 'center',
+  scanButton: {
+    minWidth: 200,
   },
-  infoText: {
-    color: theme.colors.textSecondary,
-    fontSize: 12,
-    textAlign: 'center',
-    marginTop: 16,
-    paddingHorizontal: 20,
-    lineHeight: 18,
+  cancelButton: {
+    minWidth: 200,
   },
   bottomSheet: {
     position: 'absolute',
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: theme.colors.surface,
+    backgroundColor: '#fff',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    minHeight: BOTTOM_SHEET_MIN_HEIGHT,
-    maxHeight: BOTTOM_SHEET_MAX_HEIGHT,
+    paddingTop: 8,
+    paddingHorizontal: 20,
+    paddingBottom: 34,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    maxHeight: BOTTOM_SHEET_MAX_HEIGHT,
   },
-  bottomSheetHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
-    position: 'relative',
-  },
-  handle: {
+  bottomSheetHandle: {
     width: 40,
     height: 4,
-    backgroundColor: theme.colors.border,
+    backgroundColor: '#ddd',
     borderRadius: 2,
-  },
-  closeButton: {
-    position: 'absolute',
-    right: 16,
-    top: 16,
-    padding: 4,
-  },
-  bottomSheetContent: {
-    flex: 1,
-    padding: 16,
-  },
-  productHeader: {
+    alignSelf: 'center',
     marginBottom: 16,
   },
+  productHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  productInfo: {
+    flex: 1,
+  },
   productName: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 'bold',
     color: theme.colors.text,
     marginBottom: 4,
   },
   productBrand: {
-    fontSize: 16,
+    fontSize: 14,
     color: theme.colors.textSecondary,
-    marginBottom: 4,
   },
-  barcodeText: {
-    fontSize: 12,
-    color: theme.colors.textSecondary,
-    fontFamily: 'monospace',
+  closeButton: {
+    padding: 8,
+    marginLeft: 12,
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: theme.colors.text,
-    marginTop: 20,
-    marginBottom: 12,
-  },
-  warningTitle: {
-    color: theme.colors.error,
-  },
-  benefitTitle: {
-    color: theme.colors.success,
-  },
-  nutrientsGrid: {
+  nutrientGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginHorizontal: -6,
+    gap: 12,
+    marginBottom: 20,
+  },
+  warningsSection: {
+    marginBottom: 16,
+  },
+  benefitsSection: {
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.colors.text,
+    marginBottom: 8,
   },
   warningText: {
-    color: theme.colors.error,
     fontSize: 14,
+    color: theme.colors.error,
+    lineHeight: 20,
     marginBottom: 4,
-    paddingLeft: 8,
   },
   benefitText: {
-    color: theme.colors.success,
     fontSize: 14,
+    color: theme.colors.success,
+    lineHeight: 20,
     marginBottom: 4,
-    paddingLeft: 8,
-  },
-  bottomSheetActions: {
-    marginTop: 24,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.border,
-  },
-  actionButton: {
-    marginHorizontal: 0,
   },
 });
