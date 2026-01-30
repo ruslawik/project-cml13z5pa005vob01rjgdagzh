@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, Animated, Dimensions, StyleSheet, PanResponder } from 'react-native';
+import { View, Text, Animated, Dimensions, StyleSheet, PanResponder, Alert, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import Button from '../components/Button';
@@ -154,10 +154,6 @@ export default function ScanScreen() {
   });
 
   useEffect(() => {
-    if (!isScanning && !scannedProduct) {
-      startScanning();
-    }
-
     // Cleanup function to stop animation on unmount
     return () => {
       if (scanningAnimationRef.current) {
@@ -175,7 +171,11 @@ export default function ScanScreen() {
   return (
     <View style={styles.container}>
       {/* Camera View */}
-      <View style={styles.cameraContainer}>
+      <TouchableOpacity 
+        style={styles.cameraContainer}
+        onPress={!isScanning && !scannedProduct ? startScanning : undefined}
+        activeOpacity={0.8}
+      >
         <View style={styles.cameraPlaceholder}>
           <Ionicons 
             name="camera" 
@@ -217,7 +217,7 @@ export default function ScanScreen() {
             />
           </View>
         )}
-      </View>
+      </TouchableOpacity>
 
       {/* Bottom Sheet */}
       {scannedProduct && (
@@ -285,40 +285,34 @@ export default function ScanScreen() {
               </View>
             </View>
 
-            {/* Health Warnings */}
             {scannedProduct.healthWarnings && scannedProduct.healthWarnings.length > 0 && (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Health Warnings</Text>
+              <View style={styles.warningsSection}>
+                <Text style={styles.sectionTitle}>⚠️ Health Warnings</Text>
                 {scannedProduct.healthWarnings.map((warning, index) => (
                   <View key={index} style={styles.warningItem}>
-                    <Ionicons name="warning" size={16} color={theme.colors.warning} />
-                    <Text style={styles.warningText}>{warning}</Text>
+                    <Text style={styles.warningText}>• {warning}</Text>
                   </View>
                 ))}
               </View>
             )}
 
-            {/* Benefits */}
             {scannedProduct.benefits && scannedProduct.benefits.length > 0 && (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Health Benefits</Text>
+              <View style={styles.benefitsSection}>
+                <Text style={styles.sectionTitle}>✓ Benefits</Text>
                 {scannedProduct.benefits.map((benefit, index) => (
                   <View key={index} style={styles.benefitItem}>
-                    <Ionicons name="checkmark-circle" size={16} color={theme.colors.success} />
-                    <Text style={styles.benefitText}>{benefit}</Text>
+                    <Text style={styles.benefitText}>• {benefit}</Text>
                   </View>
                 ))}
               </View>
             )}
 
-            {/* Action buttons */}
             <View style={styles.actionButtons}>
               <Button
                 title="Scan Another"
-                onPress={() => {
-                  dismissBottomSheet();
-                }}
-                style={styles.actionButton}
+                onPress={dismissBottomSheet}
+                variant="outline"
+                icon="scan"
               />
             </View>
           </View>
@@ -337,168 +331,175 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    padding: theme.spacing.lg,
   },
   cameraPlaceholder: {
     width: 300,
     height: 300,
     backgroundColor: theme.colors.surface,
-    borderRadius: 20,
+    borderRadius: theme.borderRadius.md,
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    marginBottom: theme.spacing.lg,
+    borderWidth: 2,
+    borderColor: theme.colors.border,
   },
   cameraText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: theme.colors.text,
-    marginTop: 12,
+    fontSize: theme.typography.body.fontSize,
+    fontWeight: theme.typography.body.fontWeight,
+    color: theme.colors.textSecondary,
+    marginTop: theme.spacing.sm,
   },
   cameraSubtext: {
-    fontSize: 14,
+    fontSize: theme.typography.caption.fontSize,
     color: theme.colors.textSecondary,
-    marginTop: 8,
     textAlign: 'center',
+    marginTop: theme.spacing.xs,
   },
   scanningOverlay: {
     position: 'absolute',
-    top: 50,
-    left: 50,
-    right: 50,
-    bottom: 50,
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   scanFrame: {
-    flex: 1,
+    width: 200,
+    height: 200,
     borderWidth: 2,
     borderColor: theme.colors.primary,
-    borderRadius: 10,
+    borderRadius: theme.borderRadius.sm,
+    position: 'absolute',
   },
   scanLine: {
     position: 'absolute',
-    left: 0,
-    right: 0,
+    left: 50,
+    right: 50,
     height: 2,
     backgroundColor: theme.colors.primary,
-    opacity: 0.8,
+    shadowColor: theme.colors.primary,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 4,
   },
   instructionText: {
-    fontSize: 16,
+    fontSize: theme.typography.body.fontSize,
     color: theme.colors.text,
-    marginTop: 24,
     textAlign: 'center',
+    marginBottom: theme.spacing.lg,
   },
   buttonContainer: {
-    marginTop: 32,
     width: '100%',
-    alignItems: 'center',
+    maxWidth: 200,
   },
   bottomSheet: {
     position: 'absolute',
     left: 0,
     right: 0,
-    top: 0,
+    bottom: 0,
     backgroundColor: theme.colors.surface,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    borderTopLeftRadius: theme.borderRadius.lg,
+    borderTopRightRadius: theme.borderRadius.lg,
+    paddingHorizontal: theme.spacing.md,
+    paddingTop: theme.spacing.sm,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 8,
+    height: SCREEN_HEIGHT,
   },
   bottomSheetHandle: {
     width: 40,
     height: 4,
-    backgroundColor: theme.colors.textSecondary,
-    alignSelf: 'center',
-    marginTop: 8,
+    backgroundColor: theme.colors.border,
     borderRadius: 2,
+    alignSelf: 'center',
+    marginBottom: theme.spacing.md,
   },
   quickInfo: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
-    paddingBottom: 10,
+    paddingBottom: theme.spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border,
   },
   productQuickInfo: {
     flex: 1,
   },
   productNameQuick: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: theme.typography.body.fontSize,
+    fontWeight: '600',
     color: theme.colors.text,
+    marginBottom: 2,
   },
   productBrandQuick: {
-    fontSize: 14,
+    fontSize: theme.typography.caption.fontSize,
     color: theme.colors.textSecondary,
-    marginTop: 2,
   },
   scoreQuick: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
+    alignItems: 'center',
+    backgroundColor: theme.colors.primary,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    borderRadius: theme.borderRadius.md,
   },
   scoreValueQuick: {
-    fontSize: 32,
+    fontSize: 24,
     fontWeight: 'bold',
-    color: theme.colors.primary,
+    color: 'white',
   },
   scoreMaxQuick: {
-    fontSize: 16,
-    color: theme.colors.textSecondary,
-    marginLeft: 2,
+    fontSize: 12,
+    color: 'white',
+    opacity: 0.8,
   },
   detailedContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingTop: theme.spacing.md,
+    paddingBottom: 100,
   },
   nutrientsSection: {
-    marginVertical: 20,
+    marginTop: theme.spacing.lg,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: theme.typography.subheading.fontSize,
+    fontWeight: theme.typography.subheading.fontWeight,
     color: theme.colors.text,
-    marginBottom: 12,
+    marginBottom: theme.spacing.md,
   },
   nutrientsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    justifyContent: 'space-between',
   },
-  section: {
-    marginVertical: 16,
+  warningsSection: {
+    marginTop: theme.spacing.lg,
   },
   warningItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: theme.spacing.xs,
   },
   warningText: {
-    flex: 1,
-    fontSize: 14,
-    color: theme.colors.text,
-    marginLeft: 8,
+    fontSize: theme.typography.body.fontSize,
+    color: '#D32F2F',
+    lineHeight: 20,
+  },
+  benefitsSection: {
+    marginTop: theme.spacing.lg,
   },
   benefitItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: theme.spacing.xs,
   },
   benefitText: {
-    flex: 1,
-    fontSize: 14,
-    color: theme.colors.text,
-    marginLeft: 8,
+    fontSize: theme.typography.body.fontSize,
+    color: '#388E3C',
+    lineHeight: 20,
   },
   actionButtons: {
-    marginTop: 20,
-    gap: 12,
-  },
-  actionButton: {
-    marginBottom: 0,
+    marginTop: theme.spacing.xl,
+    gap: theme.spacing.sm,
   },
 });
