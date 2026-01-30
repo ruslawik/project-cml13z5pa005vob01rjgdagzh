@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, Animated, Dimensions, StyleSheet } from 'react-native';
-import { PanGestureHandler, GestureHandlerGestureEvent, State } from 'react-native-gesture-handler';
+import { PanGestureHandler, State } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 
 import Button from '../components/Button';
@@ -119,7 +119,7 @@ export default function ScanScreen() {
     { useNativeDriver: false }
   );
 
-  const onHandlerStateChange = (event: GestureHandlerGestureEvent) => {
+  const onHandlerStateChange = (event: any) => {
     const { state, translationY } = event.nativeEvent;
     
     if (state === State.BEGAN) {
@@ -272,11 +272,7 @@ export default function ScanScreen() {
                   <Text style={styles.sectionTitle}>Health Warnings</Text>
                   {scannedProduct.healthWarnings.map((warning, index) => (
                     <View key={index} style={styles.warningItem}>
-                      <Ionicons 
-                        name="warning" 
-                        size={16} 
-                        color={theme.colors.warning} 
-                      />
+                      <Ionicons name="warning" size={16} color={theme.colors.warning} />
                       <Text style={styles.warningText}>{warning}</Text>
                     </View>
                   ))}
@@ -288,29 +284,18 @@ export default function ScanScreen() {
                   <Text style={styles.sectionTitle}>Benefits</Text>
                   {scannedProduct.benefits.map((benefit, index) => (
                     <View key={index} style={styles.benefitItem}>
-                      <Ionicons 
-                        name="checkmark-circle" 
-                        size={16} 
-                        color={theme.colors.success} 
-                      />
+                      <Ionicons name="checkmark-circle" size={16} color={theme.colors.success} />
                       <Text style={styles.benefitText}>{benefit}</Text>
                     </View>
                   ))}
                 </View>
               )}
 
-              <View style={styles.actionsSection}>
+              <View style={styles.actions}>
                 <Button
                   title="Scan Another"
                   onPress={dismissBottomSheet}
-                  variant="secondary"
-                />
-                <Button
-                  title="Save Product"
-                  onPress={() => {
-                    // Handle save functionality
-                    console.log('Saving product:', scannedProduct);
-                  }}
+                  variant="outline"
                 />
               </View>
             </View>
@@ -336,26 +321,23 @@ const styles = StyleSheet.create({
     width: 300,
     height: 300,
     backgroundColor: '#f0f0f0',
-    borderRadius: 20,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 20,
     position: 'relative',
-    borderWidth: 2,
-    borderColor: theme.colors.border,
-    borderStyle: 'dashed',
+    marginBottom: 20,
   },
   cameraText: {
     fontSize: 18,
     fontWeight: '600',
     color: theme.colors.textSecondary,
-    marginTop: 10,
+    marginTop: 16,
   },
   cameraSubtext: {
     fontSize: 14,
     color: theme.colors.textSecondary,
-    marginTop: 5,
     textAlign: 'center',
+    marginTop: 8,
   },
   scanningOverlay: {
     position: 'absolute',
@@ -363,47 +345,46 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   scanFrame: {
-    position: 'absolute',
-    top: 50,
-    left: 50,
-    right: 50,
-    bottom: 50,
+    width: 200,
+    height: 200,
     borderWidth: 2,
     borderColor: theme.colors.primary,
-    borderRadius: 10,
+    borderRadius: 8,
+    position: 'absolute',
   },
   scanLine: {
     position: 'absolute',
-    left: 52,
-    right: 52,
+    left: 50,
+    right: 50,
     height: 2,
     backgroundColor: theme.colors.primary,
-    shadowColor: theme.colors.primary,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 4,
+    opacity: 0.8,
   },
   instructionText: {
     fontSize: 16,
-    color: theme.colors.text,
+    color: theme.colors.textPrimary,
     textAlign: 'center',
     marginBottom: 20,
   },
   buttonContainer: {
     width: '100%',
-    maxWidth: 300,
+    paddingHorizontal: 20,
   },
   bottomSheet: {
     position: 'absolute',
     left: 0,
     right: 0,
-    height: SCREEN_HEIGHT,
-    backgroundColor: theme.colors.surface,
+    bottom: 0,
+    backgroundColor: 'white',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+    elevation: 5,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.25,
@@ -412,7 +393,7 @@ const styles = StyleSheet.create({
   bottomSheetHandle: {
     width: 40,
     height: 4,
-    backgroundColor: theme.colors.border,
+    backgroundColor: '#ddd',
     borderRadius: 2,
     alignSelf: 'center',
     marginTop: 8,
@@ -422,10 +403,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
+    borderBottomColor: '#eee',
   },
   productQuickInfo: {
     flex: 1,
@@ -433,12 +413,12 @@ const styles = StyleSheet.create({
   productNameQuick: {
     fontSize: 18,
     fontWeight: '600',
-    color: theme.colors.text,
-    marginBottom: 4,
+    color: theme.colors.textPrimary,
   },
   productBrandQuick: {
     fontSize: 14,
     color: theme.colors.textSecondary,
+    marginTop: 2,
   },
   scoreQuick: {
     flexDirection: 'row',
@@ -450,68 +430,57 @@ const styles = StyleSheet.create({
     color: theme.colors.primary,
   },
   scoreMaxQuick: {
-    fontSize: 16,
+    fontSize: 14,
     color: theme.colors.textSecondary,
     marginLeft: 2,
   },
   detailedContent: {
-    flex: 1,
-    padding: 20,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: theme.colors.text,
-    marginBottom: 12,
+    paddingTop: 16,
   },
   nutrientsSection: {
-    marginBottom: 24,
+    marginTop: 20,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.colors.textPrimary,
+    marginBottom: 12,
   },
   nutrientsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
+    gap: 12,
   },
   warningsSection: {
-    marginBottom: 24,
+    marginTop: 24,
   },
   warningItem: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    backgroundColor: `${theme.colors.warning}15`,
-    borderRadius: 8,
   },
   warningText: {
     fontSize: 14,
-    color: theme.colors.text,
+    color: theme.colors.textPrimary,
     marginLeft: 8,
     flex: 1,
   },
   benefitsSection: {
-    marginBottom: 24,
+    marginTop: 24,
   },
   benefitItem: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    backgroundColor: `${theme.colors.success}15`,
-    borderRadius: 8,
   },
   benefitText: {
     fontSize: 14,
-    color: theme.colors.text,
+    color: theme.colors.textPrimary,
     marginLeft: 8,
     flex: 1,
   },
-  actionsSection: {
-    flexDirection: 'row',
+  actions: {
+    marginTop: 32,
     gap: 12,
-    marginTop: 'auto',
-    paddingTop: 20,
   },
 });
