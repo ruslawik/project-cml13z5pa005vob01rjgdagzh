@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, Animated, Dimensions, StyleSheet } from 'react-native';
-import { PanGestureHandler, PanGestureHandlerGestureEvent, State } from 'react-native-gesture-handler';
+import { PanGestureHandler, GestureHandlerGestureEvent, State } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 
 import Button from '../components/Button';
@@ -119,7 +119,7 @@ export default function ScanScreen() {
     { useNativeDriver: false }
   );
 
-  const onHandlerStateChange = (event: PanGestureHandlerGestureEvent) => {
+  const onHandlerStateChange = (event: GestureHandlerGestureEvent) => {
     const { state, translationY } = event.nativeEvent;
     
     if (state === State.BEGAN) {
@@ -267,7 +267,6 @@ export default function ScanScreen() {
                 </View>
               </View>
 
-              {/* Health Warnings */}
               {scannedProduct.healthWarnings.length > 0 && (
                 <View style={styles.warningsSection}>
                   <Text style={styles.sectionTitle}>Health Warnings</Text>
@@ -284,10 +283,9 @@ export default function ScanScreen() {
                 </View>
               )}
 
-              {/* Benefits */}
               {scannedProduct.benefits.length > 0 && (
                 <View style={styles.benefitsSection}>
-                  <Text style={styles.sectionTitle}>Health Benefits</Text>
+                  <Text style={styles.sectionTitle}>Benefits</Text>
                   {scannedProduct.benefits.map((benefit, index) => (
                     <View key={index} style={styles.benefitItem}>
                       <Ionicons 
@@ -301,21 +299,18 @@ export default function ScanScreen() {
                 </View>
               )}
 
-              <View style={styles.actionsContainer}>
+              <View style={styles.actionsSection}>
                 <Button
                   title="Scan Another"
-                  onPress={() => {
-                    dismissBottomSheet();
-                  }}
-                  variant="outline"
-                  style={styles.actionButton}
+                  onPress={dismissBottomSheet}
+                  variant="secondary"
                 />
                 <Button
                   title="Save Product"
                   onPress={() => {
-                    // TODO: Implement save functionality
+                    // Handle save functionality
+                    console.log('Saving product:', scannedProduct);
                   }}
-                  style={styles.actionButton}
                 />
               </View>
             </View>
@@ -335,29 +330,31 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: theme.spacing.large,
+    padding: 20,
   },
   cameraPlaceholder: {
     width: 300,
     height: 300,
-    backgroundColor: theme.colors.surface,
-    borderRadius: theme.borderRadius.medium,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
+    marginBottom: 20,
     position: 'relative',
-    marginBottom: theme.spacing.large,
-    ...theme.shadows.medium,
+    borderWidth: 2,
+    borderColor: theme.colors.border,
+    borderStyle: 'dashed',
   },
   cameraText: {
     fontSize: 18,
     fontWeight: '600',
     color: theme.colors.textSecondary,
-    marginTop: theme.spacing.medium,
+    marginTop: 10,
   },
   cameraSubtext: {
     fontSize: 14,
     color: theme.colors.textSecondary,
-    marginTop: theme.spacing.small,
+    marginTop: 5,
     textAlign: 'center',
   },
   scanningOverlay: {
@@ -366,62 +363,67 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    justifyContent: 'center',
-    alignItems: 'center',
+    borderRadius: 18,
   },
   scanFrame: {
-    width: 250,
-    height: 250,
+    position: 'absolute',
+    top: 50,
+    left: 50,
+    right: 50,
+    bottom: 50,
     borderWidth: 2,
     borderColor: theme.colors.primary,
-    borderRadius: theme.borderRadius.medium,
-    backgroundColor: 'transparent',
+    borderRadius: 10,
   },
   scanLine: {
     position: 'absolute',
-    left: 25,
-    right: 25,
+    left: 52,
+    right: 52,
     height: 2,
     backgroundColor: theme.colors.primary,
-    opacity: 0.8,
+    shadowColor: theme.colors.primary,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 4,
   },
   instructionText: {
     fontSize: 16,
-    color: theme.colors.textPrimary,
+    color: theme.colors.text,
     textAlign: 'center',
-    marginBottom: theme.spacing.large,
+    marginBottom: 20,
   },
   buttonContainer: {
     width: '100%',
-    paddingHorizontal: theme.spacing.medium,
+    maxWidth: 300,
   },
   bottomSheet: {
     position: 'absolute',
     left: 0,
     right: 0,
-    bottom: 0,
+    height: SCREEN_HEIGHT,
     backgroundColor: theme.colors.surface,
-    borderTopLeftRadius: theme.borderRadius.large,
-    borderTopRightRadius: theme.borderRadius.large,
-    minHeight: BOTTOM_SHEET_MIN_HEIGHT,
-    maxHeight: BOTTOM_SHEET_MAX_HEIGHT,
-    ...theme.shadows.large,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
   },
   bottomSheetHandle: {
     width: 40,
     height: 4,
-    backgroundColor: theme.colors.textSecondary,
+    backgroundColor: theme.colors.border,
     borderRadius: 2,
     alignSelf: 'center',
-    marginTop: theme.spacing.small,
-    marginBottom: theme.spacing.medium,
+    marginTop: 8,
+    marginBottom: 16,
   },
   quickInfo: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: theme.spacing.large,
-    paddingBottom: theme.spacing.medium,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border,
   },
@@ -431,12 +433,12 @@ const styles = StyleSheet.create({
   productNameQuick: {
     fontSize: 18,
     fontWeight: '600',
-    color: theme.colors.textPrimary,
+    color: theme.colors.text,
+    marginBottom: 4,
   },
   productBrandQuick: {
     fontSize: 14,
     color: theme.colors.textSecondary,
-    marginTop: 2,
   },
   scoreQuick: {
     flexDirection: 'row',
@@ -450,58 +452,66 @@ const styles = StyleSheet.create({
   scoreMaxQuick: {
     fontSize: 16,
     color: theme.colors.textSecondary,
+    marginLeft: 2,
   },
   detailedContent: {
-    padding: theme.spacing.large,
-  },
-  nutrientsSection: {
-    marginTop: theme.spacing.large,
+    flex: 1,
+    padding: 20,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: theme.colors.textPrimary,
-    marginBottom: theme.spacing.medium,
+    color: theme.colors.text,
+    marginBottom: 12,
+  },
+  nutrientsSection: {
+    marginBottom: 24,
   },
   nutrientsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: theme.spacing.small,
+    justifyContent: 'space-between',
   },
   warningsSection: {
-    marginTop: theme.spacing.large,
+    marginBottom: 24,
   },
   warningItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: theme.spacing.small,
+    marginBottom: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: `${theme.colors.warning}15`,
+    borderRadius: 8,
   },
   warningText: {
     fontSize: 14,
-    color: theme.colors.textPrimary,
-    marginLeft: theme.spacing.small,
+    color: theme.colors.text,
+    marginLeft: 8,
     flex: 1,
   },
   benefitsSection: {
-    marginTop: theme.spacing.large,
+    marginBottom: 24,
   },
   benefitItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: theme.spacing.small,
+    marginBottom: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: `${theme.colors.success}15`,
+    borderRadius: 8,
   },
   benefitText: {
     fontSize: 14,
-    color: theme.colors.textPrimary,
-    marginLeft: theme.spacing.small,
+    color: theme.colors.text,
+    marginLeft: 8,
     flex: 1,
   },
-  actionsContainer: {
+  actionsSection: {
     flexDirection: 'row',
-    gap: theme.spacing.medium,
-    marginTop: theme.spacing.extraLarge,
-  },
-  actionButton: {
-    flex: 1,
+    gap: 12,
+    marginTop: 'auto',
+    paddingTop: 20,
   },
 });
