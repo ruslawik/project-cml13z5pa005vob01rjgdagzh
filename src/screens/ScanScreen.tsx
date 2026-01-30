@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, ScrollView, Alert } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, Animated, Dimensions, PanGestureHandler, State } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import Button from '../components/Button';
@@ -7,6 +7,10 @@ import NutrientCard from '../components/NutrientCard';
 import QualityScore from '../components/QualityScore';
 import { theme } from '../constants/theme';
 import { ProductInfo } from '../types';
+
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+const BOTTOM_SHEET_MAX_HEIGHT = SCREEN_HEIGHT * 0.8;
+const BOTTOM_SHEET_MIN_HEIGHT = 120;
 
 // Mock data for demo purposes
 const mockProductData: ProductInfo = {
@@ -37,132 +41,262 @@ const mockProductData: ProductInfo = {
 export default function ScanScreen() {
   const [isScanning, setIsScanning] = useState(false);
   const [scannedProduct, setScannedProduct] = useState<ProductInfo | null>(null);
+  const [scanningAnimation] = useState(new Animated.Value(0));
+  
+  const bottomSheetTranslateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
+  const lastGesture = useRef(0);
 
-  const handleStartScan = () => {
+  const startScanning = () => {
     setIsScanning(true);
     
-    // Simulate scanning process
+    // Animate scanning indicator
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(scanningAnimation, {
+          toValue: 1,
+          duration: 1500,
+          useNativeDriver: false,
+        }),
+        Animated.timing(scanningAnimation, {
+          toValue: 0,
+          duration: 1500,
+          useNativeDriver: false,
+        }),
+      ])
+    ).start();
+
+    // Simulate finding a product after random time
+    const scanTime = Math.random() * 3000 + 2000; // 2-5 seconds
     setTimeout(() => {
-      setIsScanning(false);
       setScannedProduct(mockProductData);
-    }, 2000);
+      showBottomSheet();
+      Animated.loop().stop();
+      scanningAnimation.setValue(0);
+    }, scanTime);
   };
 
-  const handleScanAnother = () => {
-    setScannedProduct(null);
+  const showBottomSheet = () => {
+    Animated.spring(bottomSheetTranslateY, {
+      toValue: SCREEN_HEIGHT - BOTTOM_SHEET_MIN_HEIGHT,
+      useNativeDriver: false,
+      tension: 100,
+      friction: 8,
+    }).start();
   };
+
+  const expandBottomSheet = () => {
+    Animated.spring(bottomSheetTranslateY, {
+      toValue: SCREEN_HEIGHT - BOTTOM_SHEET_MAX_HEIGHT,
+      useNativeDriver: false,
+      tension: 100,
+      friction: 8,
+    }).start();
+  };
+
+  const collapseBottomSheet = () => {
+    Animated.spring(bottomSheetTranslateY, {
+      toValue: SCREEN_HEIGHT - BOTTOM_SHEET_MIN_HEIGHT,
+      useNativeDriver: false,
+      tension: 100,
+      friction: 8,
+    }).start();
+  };
+
+  const dismissBottomSheet = () => {
+    Animated.timing(bottomSheetTranslateY, {
+      toValue: SCREEN_HEIGHT,
+      duration: 300,
+      useNativeDriver: false,
+    }).start(() => {
+      setScannedProduct(null);
+      setIsScanning(false);
+    });
+  };
+
+  const onGestureEvent = Animated.event(
+    [{ nativeEvent: { translationY: bottomSheetTranslateY } }],
+    { useNativeDriver: false }
+  );
+
+  const onHandlerStateChange = (event: any) => {
+    const { state, translationY } = event.nativeEvent;
+    
+    if (state === State.BEGAN) {
+      lastGesture.current = translationY;
+    }
+    
+    if (state === State.END) {
+      const draggedDown = translationY > lastGesture.current + 50;
+      const draggedUp = translationY < lastGesture.current - 50;
+      
+      if (draggedDown && translationY > SCREEN_HEIGHT * 0.3) {
+        dismissBottomSheet();
+      } else if (draggedUp) {
+        expandBottomSheet();
+      } else {
+        collapseBottomSheet();
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (!isScanning && !scannedProduct) {
+      startScanning();
+    }
+  }, []);
+
+  const scanLinePosition = scanningAnimation.interpolate({
+    inputRange: [0, 1],
+    outputRange: [20, 280],
+  });
 
   return (
     <View style={styles.container}>
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
-        {!scannedProduct ? (
-          <View style={styles.scanSection}>
-            <View style={styles.cameraPlaceholder}>
-              <Ionicons 
-                name={isScanning ? "scan" : "camera"} 
-                size={80} 
-                color={isScanning ? theme.colors.primary : theme.colors.textSecondary} 
+      {/* Camera View */}
+      <View style={styles.cameraContainer}>
+        <View style={styles.cameraPlaceholder}>
+          <Ionicons 
+            name="camera" 
+            size={80} 
+            color={theme.colors.textSecondary} 
+          />
+          <Text style={styles.cameraText}>Camera View</Text>
+          <Text style={styles.cameraSubtext}>
+            Point camera at barcode to scan
+          </Text>
+          
+          {/* Scanning overlay */}
+          <View style={styles.scanningOverlay}>
+            <View style={styles.scanFrame} />
+            {isScanning && (
+              <Animated.View 
+                style={[
+                  styles.scanLine, 
+                  { top: scanLinePosition }
+                ]} 
               />
-              <Text style={styles.cameraText}>
-                {isScanning ? "Scanning..." : "Camera will be here"}
-              </Text>
-              <Text style={styles.cameraSubtext}>
-                {isScanning 
-                  ? "Hold steady while scanning barcode" 
-                  : "Point your camera at a product barcode"
-                }
-              </Text>
-            </View>
-
-            <Button
-              title={isScanning ? "Scanning..." : "Start Scanning"}
-              onPress={handleStartScan}
-              disabled={isScanning}
-              icon={isScanning ? "scan" : "camera"}
-              style={styles.scanButton}
-            />
-
-            <Text style={styles.infoText}>
-              The camera will activate automatically when barcode scanning API is connected.
-              For now, this demonstrates the interface with mock data.
-            </Text>
+            )}
           </View>
-        ) : (
-          <View style={styles.resultSection}>
-            <View style={styles.productHeader}>
-              <Text style={styles.productName}>{scannedProduct.name}</Text>
-              <Text style={styles.productBrand}>{scannedProduct.brand}</Text>
-              <Text style={styles.barcode}>Barcode: {scannedProduct.barcode}</Text>
-            </View>
-
-            <QualityScore score={scannedProduct.qualityScore} />
-
-            <View style={styles.nutrientsSection}>
-              <Text style={styles.sectionTitle}>Nutrients (per 100g)</Text>
-              <View style={styles.nutrientsGrid}>
-                <NutrientCard
-                  name="Calories"
-                  value={scannedProduct.nutrients.calories.value}
-                  unit={scannedProduct.nutrients.calories.unit}
-                />
-                <NutrientCard
-                  name="Protein"
-                  value={scannedProduct.nutrients.protein.value}
-                  unit={scannedProduct.nutrients.protein.unit}
-                />
-                <NutrientCard
-                  name="Carbs"
-                  value={scannedProduct.nutrients.carbs.value}
-                  unit={scannedProduct.nutrients.carbs.unit}
-                />
-                <NutrientCard
-                  name="Fat"
-                  value={scannedProduct.nutrients.fat.value}
-                  unit={scannedProduct.nutrients.fat.unit}
-                />
-                <NutrientCard
-                  name="Fiber"
-                  value={scannedProduct.nutrients.fiber.value}
-                  unit={scannedProduct.nutrients.fiber.unit}
-                />
-                <NutrientCard
-                  name="Sugar"
-                  value={scannedProduct.nutrients.sugar.value}
-                  unit={scannedProduct.nutrients.sugar.unit}
-                />
-              </View>
-            </View>
-
-            <View style={styles.healthSection}>
-              <Text style={styles.sectionTitle}>Health Warnings</Text>
-              {scannedProduct.healthWarnings.map((warning, index) => (
-                <View key={index} style={styles.warningItem}>
-                  <Ionicons name="warning" size={16} color={theme.colors.error} />
-                  <Text style={styles.warningText}>{warning}</Text>
-                </View>
-              ))}
-            </View>
-
-            <View style={styles.healthSection}>
-              <Text style={styles.sectionTitle}>Health Benefits</Text>
-              {scannedProduct.benefits.map((benefit, index) => (
-                <View key={index} style={styles.benefitItem}>
-                  <Ionicons name="checkmark-circle" size={16} color={theme.colors.success} />
-                  <Text style={styles.benefitText}>{benefit}</Text>
-                </View>
-              ))}
-            </View>
-
+        </View>
+        
+        <Text style={styles.instructionText}>
+          {isScanning 
+            ? "Scanning for barcodes..." 
+            : "Tap anywhere to start scanning"
+          }
+        </Text>
+        
+        {!isScanning && !scannedProduct && (
+          <View style={styles.buttonContainer}>
             <Button
-              title="Scan Another Product"
-              onPress={handleScanAnother}
+              title="Start Scanning"
+              onPress={startScanning}
               icon="scan"
-              variant="outline"
-              style={styles.scanAnotherButton}
             />
           </View>
         )}
-      </ScrollView>
+      </View>
+
+      {/* Bottom Sheet */}
+      {scannedProduct && (
+        <PanGestureHandler
+          onGestureEvent={onGestureEvent}
+          onHandlerStateChange={onHandlerStateChange}
+        >
+          <Animated.View 
+            style={[
+              styles.bottomSheet,
+              {
+                transform: [{ translateY: bottomSheetTranslateY }],
+              }
+            ]}
+          >
+            {/* Handle */}
+            <View style={styles.bottomSheetHandle} />
+            
+            {/* Quick info */}
+            <View style={styles.quickInfo}>
+              <View style={styles.productQuickInfo}>
+                <Text style={styles.productNameQuick}>{scannedProduct.name}</Text>
+                <Text style={styles.productBrandQuick}>{scannedProduct.brand}</Text>
+              </View>
+              <View style={styles.scoreQuick}>
+                <Text style={styles.scoreValueQuick}>{scannedProduct.qualityScore}</Text>
+                <Text style={styles.scoreMaxQuick}>/100</Text>
+              </View>
+            </View>
+
+            {/* Detailed content */}
+            <View style={styles.detailedContent}>
+              <QualityScore score={scannedProduct.qualityScore} />
+
+              <View style={styles.nutrientsSection}>
+                <Text style={styles.sectionTitle}>Nutrients (per 100g)</Text>
+                <View style={styles.nutrientsGrid}>
+                  <NutrientCard
+                    name="Calories"
+                    value={scannedProduct.nutrients.calories.value}
+                    unit={scannedProduct.nutrients.calories.unit}
+                  />
+                  <NutrientCard
+                    name="Protein"
+                    value={scannedProduct.nutrients.protein.value}
+                    unit={scannedProduct.nutrients.protein.unit}
+                  />
+                  <NutrientCard
+                    name="Carbs"
+                    value={scannedProduct.nutrients.carbs.value}
+                    unit={scannedProduct.nutrients.carbs.unit}
+                  />
+                  <NutrientCard
+                    name="Fat"
+                    value={scannedProduct.nutrients.fat.value}
+                    unit={scannedProduct.nutrients.fat.unit}
+                  />
+                  <NutrientCard
+                    name="Fiber"
+                    value={scannedProduct.nutrients.fiber.value}
+                    unit={scannedProduct.nutrients.fiber.unit}
+                  />
+                  <NutrientCard
+                    name="Sugar"
+                    value={scannedProduct.nutrients.sugar.value}
+                    unit={scannedProduct.nutrients.sugar.unit}
+                  />
+                </View>
+              </View>
+
+              <View style={styles.healthSection}>
+                <Text style={styles.sectionTitle}>Health Warnings</Text>
+                {scannedProduct.healthWarnings.map((warning, index) => (
+                  <View key={index} style={styles.warningItem}>
+                    <Ionicons name="warning" size={16} color={theme.colors.error} />
+                    <Text style={styles.warningText}>{warning}</Text>
+                  </View>
+                ))}
+              </View>
+
+              <View style={styles.healthSection}>
+                <Text style={styles.sectionTitle}>Health Benefits</Text>
+                {scannedProduct.benefits.map((benefit, index) => (
+                  <View key={index} style={styles.benefitItem}>
+                    <Ionicons name="checkmark-circle" size={16} color={theme.colors.success} />
+                    <Text style={styles.benefitText}>{benefit}</Text>
+                  </View>
+                ))}
+              </View>
+
+              <Button
+                title="Scan Another Product"
+                onPress={dismissBottomSheet}
+                icon="scan"
+                variant="outline"
+                style={styles.scanAnotherButton}
+              />
+            </View>
+          </Animated.View>
+        </PanGestureHandler>
+      )}
     </View>
   );
 }
@@ -172,75 +306,131 @@ const styles = {
     flex: 1,
     backgroundColor: theme.colors.background,
   },
-  scrollView: {
+  cameraContainer: {
     flex: 1,
-  },
-  content: {
     padding: 20,
-    paddingBottom: 40,
-  },
-  scanSection: {
-    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
   },
   cameraPlaceholder: {
     width: '100%',
-    height: 300,
-    backgroundColor: theme.colors.surface,
+    height: 400,
+    backgroundColor: '#000',
     borderRadius: 12,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
     marginBottom: 20,
-    borderWidth: 2,
-    borderColor: theme.colors.border,
-    borderStyle: 'dashed' as const,
+    position: 'relative' as const,
+    overflow: 'hidden' as const,
   },
   cameraText: {
     fontSize: 18,
     fontWeight: '600' as const,
-    color: theme.colors.text,
+    color: '#fff',
     marginTop: 12,
   },
   cameraSubtext: {
     fontSize: 14,
-    color: theme.colors.textSecondary,
+    color: '#ccc',
     textAlign: 'center' as const,
     marginTop: 8,
   },
-  scanButton: {
+  scanningOverlay: {
+    position: 'absolute' as const,
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  scanFrame: {
+    position: 'absolute' as const,
+    top: 50,
+    left: 50,
+    right: 50,
+    height: 250,
+    borderWidth: 2,
+    borderColor: theme.colors.primary,
+    borderRadius: 8,
+  },
+  scanLine: {
+    position: 'absolute' as const,
+    left: 50,
+    right: 50,
+    height: 2,
+    backgroundColor: theme.colors.primary,
+    shadowColor: theme.colors.primary,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 10,
+  },
+  instructionText: {
+    fontSize: 16,
+    color: theme.colors.text,
+    textAlign: 'center' as const,
     marginBottom: 20,
   },
-  infoText: {
-    fontSize: 14,
-    color: theme.colors.textSecondary,
-    textAlign: 'center' as const,
-    lineHeight: 20,
-    paddingHorizontal: 20,
-  },
-  resultSection: {
-    gap: 20,
-  },
-  productHeader: {
+  buttonContainer: {
     alignItems: 'center' as const,
+  },
+  bottomSheet: {
+    position: 'absolute' as const,
+    left: 0,
+    right: 0,
+    height: SCREEN_HEIGHT,
+    backgroundColor: theme.colors.surface,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+  },
+  bottomSheetHandle: {
+    width: 40,
+    height: 4,
+    backgroundColor: theme.colors.border,
+    borderRadius: 2,
+    alignSelf: 'center' as const,
+    marginTop: 8,
+    marginBottom: 16,
+  },
+  quickInfo: {
+    flexDirection: 'row' as const,
+    justifyContent: 'space-between' as const,
+    alignItems: 'center' as const,
+    paddingHorizontal: 20,
     paddingBottom: 20,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border,
   },
-  productName: {
-    fontSize: 24,
+  productQuickInfo: {
+    flex: 1,
+  },
+  productNameQuick: {
+    fontSize: 18,
     fontWeight: 'bold' as const,
     color: theme.colors.text,
-    textAlign: 'center' as const,
   },
-  productBrand: {
-    fontSize: 16,
-    color: theme.colors.textSecondary,
-    marginTop: 4,
-  },
-  barcode: {
+  productBrandQuick: {
     fontSize: 14,
     color: theme.colors.textSecondary,
-    marginTop: 8,
-    fontFamily: 'monospace',
+    marginTop: 2,
+  },
+  scoreQuick: {
+    alignItems: 'center' as const,
+  },
+  scoreValueQuick: {
+    fontSize: 32,
+    fontWeight: 'bold' as const,
+    color: theme.colors.primary,
+  },
+  scoreMaxQuick: {
+    fontSize: 14,
+    color: theme.colors.textSecondary,
+    marginTop: -4,
+  },
+  detailedContent: {
+    padding: 20,
+    gap: 20,
   },
   nutrientsSection: {
     gap: 12,
@@ -281,6 +471,6 @@ const styles = {
     color: theme.colors.text,
   },
   scanAnotherButton: {
-    marginTop: 10,
+    marginTop: 20,
   },
 };
