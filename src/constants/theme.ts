@@ -5,7 +5,7 @@ export const theme = {
     success: '#10b981',
     warning: '#f59e0b',
     error: '#ef4444',
-    background: '#f8fafc',
+    background: '#D9D9D9',
     surface: '#ffffff',
     text: '#1e293b',
     textSecondary: '#64748b',
