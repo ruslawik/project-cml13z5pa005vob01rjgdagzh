@@ -12,6 +12,18 @@ export const theme = {
     border: '#e2e8f0',
     disabled: '#cbd5e1',
   },
+  gradients: {
+    primary: ['#667eea', '#764ba2'],
+    success: ['#11998e', '#38ef7d'],
+    warning: ['#f093fb', '#f5576c'],
+    info: ['#4facfe', '#00f2fe'],
+    appleGreen: ['#00b09b', '#96c93d'],
+    appleBlue: ['#667eea', '#764ba2'],
+    scanButton: ['#34d399', '#3b82f6'],
+    feature1: ['#ff9a9e', '#fecfef'],
+    feature2: ['#a8edea', '#fed6e3'],
+    feature3: ['#ffecd2', '#fcb69f'],
+  },
   spacing: {
     xs: 4,
     sm: 8,
