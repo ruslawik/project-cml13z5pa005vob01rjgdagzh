@@ -42,9 +42,9 @@ export default function HistoryScreen() {
   };
 
   const getQualityColor = (score: number) => {
-    if (score >= 80) return theme.colors.success;
-    if (score >= 60) return theme.colors.warning;
-    return theme.colors.error;
+    if (score >= 80) return theme.colors.text;
+    if (score >= 60) return theme.colors.secondary;
+    return theme.colors.text;
   };
 
   const formatTimestamp = (timestamp: Date) => {
@@ -86,7 +86,7 @@ export default function HistoryScreen() {
   if (scannedItems.length === 0) {
     return (
       <View style={styles.centerContainer}>
-        <Ionicons name="scan-outline" size={64} color={theme.colors.textSecondary} />
+        <Ionicons name="scan-outline" size={80} color={theme.colors.textSecondary} />
         <Text style={styles.emptyTitle}>No scanned items yet</Text>
         <Text style={styles.emptySubtitle}>Start scanning barcodes to see your history here</Text>
       </View>
@@ -98,7 +98,7 @@ export default function HistoryScreen() {
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Scan History ({scannedItems.length})</Text>
         <TouchableOpacity onPress={clearHistory} style={styles.clearButton}>
-          <Ionicons name="trash-outline" size={20} color={theme.colors.error} />
+          <Ionicons name="trash-outline" size={20} color={theme.colors.text} />
           <Text style={styles.clearText}>Clear</Text>
         </TouchableOpacity>
       </View>
@@ -128,95 +128,110 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: 16,
     color: theme.colors.textSecondary,
+    fontWeight: '500',
   },
   emptyTitle: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: 'bold',
-    color: theme.colors.textPrimary,
-    marginTop: 16,
-    marginBottom: 8,
+    color: theme.colors.text,
+    marginTop: 24,
+    marginBottom: 12,
+    textAlign: 'center',
   },
   emptySubtitle: {
     fontSize: 16,
     color: theme.colors.textSecondary,
     textAlign: 'center',
-    lineHeight: 22,
+    lineHeight: 24,
+    maxWidth: 280,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingVertical: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: theme.colors.border,
+    backgroundColor: theme.colors.surface,
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
-    color: theme.colors.textPrimary,
+    color: theme.colors.text,
   },
   clearButton: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 8,
     paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
   },
   clearText: {
-    color: theme.colors.error,
-    marginLeft: 4,
-    fontSize: 16,
+    color: theme.colors.text,
+    marginLeft: 6,
+    fontSize: 14,
+    fontWeight: '500',
   },
   listContainer: {
-    padding: 16,
+    padding: 20,
   },
   historyItem: {
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.surface,
     borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
+    padding: 20,
+    marginBottom: 16,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    shadowColor: '#000',
+    shadowColor: theme.colors.shadow,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
   },
   itemInfo: {
     flex: 1,
   },
   productName: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: 'bold',
-    color: theme.colors.textPrimary,
-    marginBottom: 4,
+    color: theme.colors.text,
+    marginBottom: 6,
   },
   brandName: {
     fontSize: 14,
     color: theme.colors.textSecondary,
-    marginBottom: 4,
+    marginBottom: 6,
+    fontWeight: '500',
   },
   barcode: {
     fontSize: 12,
-    color: theme.colors.textSecondary,
-    marginBottom: 4,
+    color: theme.colors.textMuted,
+    marginBottom: 6,
+    fontFamily: 'monospace',
   },
   timestamp: {
     fontSize: 12,
-    color: theme.colors.textSecondary,
+    color: theme.colors.textMuted,
+    fontWeight: '500',
   },
   qualityBadge: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     justifyContent: 'center',
     alignItems: 'center',
     marginLeft: 16,
+    borderWidth: 2,
+    borderColor: theme.colors.background,
   },
   qualityText: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: 'bold',
-    color: '#fff',
+    color: theme.colors.background,
   },
 });

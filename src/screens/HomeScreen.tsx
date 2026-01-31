@@ -1,9 +1,8 @@
 import React from 'react';
-import { View, Text, ScrollView } from 'react-native';
+import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 
 import { RootStackParamList } from '../types';
 import Button from '../components/Button';
@@ -21,16 +20,13 @@ export default function HomeScreen() {
   return (
     <View style={styles.container}>
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
-        <LinearGradient
-          colors={theme.gradients.primary}
-          style={styles.header}
-        >
-          <Ionicons name="nutrition" size={80} color="#fff" />
+        <View style={styles.header}>
+          <Ionicons name="nutrition" size={80} color={theme.colors.text} />
           <Text style={styles.title}>Nutrient Scanner</Text>
           <Text style={styles.subtitle}>
             Scan food barcodes to get instant nutrient quality assessment
           </Text>
-        </LinearGradient>
+        </View>
 
         <View style={styles.mainSection}>
           <Button
@@ -38,50 +34,40 @@ export default function HomeScreen() {
             onPress={handleScanPress}
             icon="scan"
             style={styles.scanButton}
-            variant="apple"
           />
         </View>
 
         <View style={styles.infoSection}>
-          <LinearGradient
-            colors={theme.gradients.feature1}
-            style={styles.featureCard}
-          >
-            <Ionicons name="star" size={32} color="#fff" />
+          <View style={styles.featureCard}>
+            <Ionicons name="star" size={32} color={theme.colors.text} />
             <Text style={styles.featureTitle}>Quality Rating</Text>
             <Text style={styles.featureDescription}>
               Get nutrient quality scores from 0 to 100
             </Text>
-          </LinearGradient>
+          </View>
 
-          <LinearGradient
-            colors={theme.gradients.feature2}
-            style={styles.featureCard}
-          >
-            <Ionicons name="shield-checkmark" size={32} color="#fff" />
+          <View style={styles.featureCard}>
+            <Ionicons name="shield-checkmark" size={32} color={theme.colors.text} />
             <Text style={styles.featureTitle}>Safety Analysis</Text>
             <Text style={styles.featureDescription}>
               Learn how safe or dangerous ingredients are
             </Text>
-          </LinearGradient>
+          </View>
 
-          <LinearGradient
-            colors={theme.gradients.feature3}
-            style={styles.featureCard}
-          >
-            <Ionicons name="analytics" size={32} color="#fff" />
+          <View style={styles.featureCard}>
+            <Ionicons name="analytics" size={32} color={theme.colors.text} />
             <Text style={styles.featureTitle}>Detailed Info</Text>
             <Text style={styles.featureDescription}>
               Complete nutrient breakdown and health insights
             </Text>
-          </LinearGradient>
+          </View>
         </View>
       </ScrollView>
     </View>
   );
 }
 
-const styles = {
+const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,
@@ -93,69 +79,78 @@ const styles = {
     paddingBottom: 40,
   },
   header: {
-    alignItems: 'center' as const,
-    paddingVertical: 40,
+    alignItems: 'center',
+    paddingVertical: 60,
     paddingHorizontal: 20,
     marginHorizontal: 16,
     marginTop: 16,
     marginBottom: 32,
+    backgroundColor: theme.colors.card,
     borderRadius: 20,
-    shadowColor: '#000',
+    shadowColor: theme.colors.shadow,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
   },
   title: {
-    fontSize: 28,
-    fontWeight: 'bold' as const,
-    color: '#fff',
-    marginTop: 16,
-    marginBottom: 8,
-    textAlign: 'center' as const,
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: theme.colors.text,
+    marginTop: 24,
+    marginBottom: 16,
+    textAlign: 'center',
+    letterSpacing: -0.5,
   },
   subtitle: {
-    fontSize: 16,
-    color: '#fff',
-    textAlign: 'center' as const,
-    lineHeight: 24,
-    maxWidth: 280,
-    opacity: 0.9,
+    fontSize: 18,
+    color: theme.colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 26,
+    maxWidth: 300,
+    fontWeight: '400',
   },
   mainSection: {
     paddingHorizontal: 20,
-    marginBottom: 32,
+    marginBottom: 40,
   },
   scanButton: {
     marginBottom: 20,
   },
   infoSection: {
     paddingHorizontal: 20,
-    gap: 16,
+    gap: 20,
   },
   featureCard: {
-    padding: 24,
+    padding: 32,
     borderRadius: 16,
-    alignItems: 'center' as const,
-    minHeight: 140,
-    justifyContent: 'center' as const,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
+    alignItems: 'center',
+    backgroundColor: theme.colors.card,
+    minHeight: 160,
+    justifyContent: 'center',
+    shadowColor: theme.colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
     shadowRadius: 8,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
   },
   featureTitle: {
-    fontSize: 20,
-    fontWeight: 'bold' as const,
-    color: '#fff',
-    marginTop: 16,
-    marginBottom: 8,
-    textAlign: 'center' as const,
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: theme.colors.text,
+    marginTop: 20,
+    marginBottom: 12,
+    textAlign: 'center',
+    letterSpacing: -0.3,
   },
   featureDescription: {
-    fontSize: 14,
-    color: '#fff',
-    textAlign: 'center' as const,
-    lineHeight: 20,
-    opacity: 0.9,
+    fontSize: 16,
+    color: theme.colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 24,
+    maxWidth: 250,
+    fontWeight: '400',
   },
-};
+});
