@@ -10,6 +10,7 @@ import HomeScreen from './src/screens/HomeScreen';
 import ScanScreen from './src/screens/ScanScreen';
 import HistoryScreen from './src/screens/HistoryScreen';
 import ProductDetailsScreen from './src/screens/ProductDetailsScreen';
+import PaywallScreen from './src/screens/PaywallScreen';
 import { RootStackParamList, TabParamList } from './src/types';
 
 const Stack = createStackNavigator<RootStackParamList>();
@@ -40,6 +41,11 @@ function HomeStack() {
         name="Scan" 
         component={ScanScreen}
         options={{ title: 'Barcode Scanner' }}
+      />
+      <Stack.Screen 
+        name="Paywall" 
+        component={PaywallScreen}
+        options={{ title: 'Get Full Access' }}
       />
     </Stack.Navigator>
   );

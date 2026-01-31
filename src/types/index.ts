@@ -1,6 +1,7 @@
 export type RootStackParamList = {
   Main: undefined;
   ProductDetails: { item: ScannedItem };
+  Paywall: undefined;
 };
 
 export type TabParamList = {
@@ -11,6 +12,7 @@ export type TabParamList = {
 export type HomeStackParamList = {
   Home: undefined;
   Scan: undefined;
+  Paywall: undefined;
 };
 
 export type HistoryStackParamList = {

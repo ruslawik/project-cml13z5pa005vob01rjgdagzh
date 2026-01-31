@@ -4,18 +4,22 @@ import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
 
-import { RootStackParamList } from '../types';
+import { HomeStackParamList } from '../types';
 import Button from '../components/Button';
 import WeightProgressGraph from '../components/WeightProgressGraph';
 import { theme } from '../constants/theme';
 
-type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
+type HomeScreenNavigationProp = StackNavigationProp<HomeStackParamList, 'Home'>;
 
 export default function HomeScreen() {
   const navigation = useNavigation<HomeScreenNavigationProp>();
 
   const handleScanPress = () => {
     navigation.navigate('Scan');
+  };
+
+  const handlePaywallPress = () => {
+    navigation.navigate('Paywall');
   };
 
   return (
@@ -37,6 +41,13 @@ export default function HomeScreen() {
             onPress={handleScanPress}
             icon="scan"
             style={styles.scanButton}
+          />
+          <Button
+            title="Get Full Access"
+            onPress={handlePaywallPress}
+            variant="outline"
+            icon="star"
+            style={styles.paywallButton}
           />
         </View>
 
@@ -118,6 +129,9 @@ const styles = StyleSheet.create({
     marginBottom: 40,
   },
   scanButton: {
+    marginBottom: 20,
+  },
+  paywallButton: {
     marginBottom: 20,
   },
   infoSection: {
