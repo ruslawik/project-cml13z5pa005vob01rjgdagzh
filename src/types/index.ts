@@ -4,7 +4,7 @@ export type RootStackParamList = {
 };
 
 export type TabParamList = {
-  Scanner: undefined;
+  HomeTab: undefined;
   History: undefined;
 };
 

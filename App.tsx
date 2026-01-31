@@ -14,15 +14,45 @@ import { RootStackParamList, TabParamList } from './src/types';
 const Stack = createStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<TabParamList>();
 
-function ScanTabs() {
+function HomeStack() {
+  return (
+    <Stack.Navigator
+      screenOptions={{
+        headerStyle: {
+          backgroundColor: '#fff',
+          elevation: 0,
+          shadowOpacity: 0,
+        },
+        headerTintColor: '#333',
+        headerTitleStyle: {
+          fontWeight: 'bold',
+          fontSize: 18,
+        },
+      }}
+    >
+      <Stack.Screen 
+        name="Home" 
+        component={HomeScreen}
+        options={{ title: 'Nutrient Scanner' }}
+      />
+      <Stack.Screen 
+        name="Scan" 
+        component={ScanScreen}
+        options={{ title: 'Barcode Scanner' }}
+      />
+    </Stack.Navigator>
+  );
+}
+
+function MainTabs() {
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
         tabBarIcon: ({ focused, color, size }) => {
           let iconName: keyof typeof Ionicons.glyphMap;
 
-          if (route.name === 'Scanner') {
-            iconName = focused ? 'scan' : 'scan-outline';
+          if (route.name === 'HomeTab') {
+            iconName = focused ? 'home' : 'home-outline';
           } else if (route.name === 'History') {
             iconName = focused ? 'time' : 'time-outline';
           } else {
@@ -37,14 +67,28 @@ function ScanTabs() {
       })}
     >
       <Tab.Screen 
-        name="Scanner" 
-        component={ScanScreen}
-        options={{ tabBarLabel: 'Scan' }}
+        name="HomeTab" 
+        component={HomeStack}
+        options={{ tabBarLabel: 'Home' }}
       />
       <Tab.Screen 
         name="History" 
         component={HistoryScreen}
-        options={{ tabBarLabel: 'History' }}
+        options={{ 
+          tabBarLabel: 'History',
+          headerShown: true,
+          headerTitle: 'Scan History',
+          headerStyle: {
+            backgroundColor: '#fff',
+            elevation: 0,
+            shadowOpacity: 0,
+          },
+          headerTintColor: '#333',
+          headerTitleStyle: {
+            fontWeight: 'bold',
+            fontSize: 18,
+          },
+        }}
       />
     </Tab.Navigator>
   );
@@ -56,32 +100,7 @@ export default function App() {
       <View style={{ flex: 1 }}>
         <StatusBar barStyle="dark-content" backgroundColor="#fff" />
         <NavigationContainer>
-          <Stack.Navigator
-            initialRouteName="Home"
-            screenOptions={{
-              headerStyle: {
-                backgroundColor: '#fff',
-                elevation: 0,
-                shadowOpacity: 0,
-              },
-              headerTintColor: '#333',
-              headerTitleStyle: {
-                fontWeight: 'bold',
-                fontSize: 18,
-              },
-            }}
-          >
-            <Stack.Screen 
-              name="Home" 
-              component={HomeScreen}
-              options={{ title: 'Nutrient Scanner' }}
-            />
-            <Stack.Screen 
-              name="Scan" 
-              component={ScanTabs}
-              options={{ title: 'Barcode Scanner' }}
-            />
-          </Stack.Navigator>
+          <MainTabs />
         </NavigationContainer>
       </View>
     </SafeAreaProvider>
