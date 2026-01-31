@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { RootStackParamList } from '../types';
 import Button from '../components/Button';
+import WeightProgressGraph from '../components/WeightProgressGraph';
 import { theme } from '../constants/theme';
 
 type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
@@ -20,20 +21,7 @@ export default function HomeScreen() {
   return (
     <View style={styles.container}>
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
-        <View style={styles.heroBlock}>
-          <Image
-            source={{
-              uri: 'https://images.unsplash.com/photo-1560472355-536de3962603?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2426&q=80'
-            }}
-            style={styles.heroImage}
-            resizeMode="cover"
-          />
-          <View style={styles.heroOverlay} />
-          <View style={styles.heroContent}>
-            <Text style={styles.heroTitle}>Pure Nutrition</Text>
-            <Text style={styles.heroSubtitle}>Discover what's really in your food</Text>
-          </View>
-        </View>
+        <WeightProgressGraph />
 
         <View style={styles.header}>
           <Ionicons name="nutrition" size={80} color={theme.colors.text} />
@@ -92,46 +80,6 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingBottom: 40,
-  },
-  heroBlock: {
-    height: 250,
-    marginHorizontal: 16,
-    marginTop: 16,
-    marginBottom: 32,
-    borderRadius: 20,
-    overflow: 'hidden',
-    position: 'relative',
-  },
-  heroImage: {
-    width: '100%',
-    height: '100%',
-    position: 'absolute',
-    top: 0,
-    left: 0,
-  },
-  heroOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
-  },
-  heroContent: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: 24,
-  },
-  heroTitle: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    marginBottom: 8,
-    letterSpacing: -0.5,
-  },
-  heroSubtitle: {
-    fontSize: 16,
-    color: '#FFFFFF',
-    opacity: 0.9,
-    fontWeight: '400',
   },
   header: {
     alignItems: 'center',
