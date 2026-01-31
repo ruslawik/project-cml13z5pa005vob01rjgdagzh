@@ -41,10 +41,30 @@ function HomeStack() {
         component={ScanScreen}
         options={{ title: 'Barcode Scanner' }}
       />
+    </Stack.Navigator>
+  );
+}
+
+function HistoryStack() {
+  return (
+    <Stack.Navigator
+      screenOptions={{
+        headerStyle: {
+          backgroundColor: '#fff',
+          elevation: 0,
+          shadowOpacity: 0,
+        },
+        headerTintColor: '#333',
+        headerTitleStyle: {
+          fontWeight: 'bold',
+          fontSize: 18,
+        },
+      }}
+    >
       <Stack.Screen 
-        name="ProductDetails" 
-        component={ProductDetailsScreen}
-        options={{ headerShown: false }}
+        name="History" 
+        component={HistoryScreen}
+        options={{ title: 'Scan History' }}
       />
     </Stack.Navigator>
   );
@@ -59,7 +79,7 @@ function MainTabs() {
 
           if (route.name === 'HomeTab') {
             iconName = focused ? 'home' : 'home-outline';
-          } else if (route.name === 'History') {
+          } else if (route.name === 'HistoryTab') {
             iconName = focused ? 'time' : 'time-outline';
           } else {
             iconName = 'help-outline';
@@ -78,23 +98,9 @@ function MainTabs() {
         options={{ tabBarLabel: 'Home' }}
       />
       <Tab.Screen 
-        name="History" 
-        component={HistoryScreen}
-        options={{ 
-          tabBarLabel: 'History',
-          headerShown: true,
-          headerTitle: 'Scan History',
-          headerStyle: {
-            backgroundColor: '#fff',
-            elevation: 0,
-            shadowOpacity: 0,
-          },
-          headerTintColor: '#333',
-          headerTitleStyle: {
-            fontWeight: 'bold',
-            fontSize: 18,
-          },
-        }}
+        name="HistoryTab" 
+        component={HistoryStack}
+        options={{ tabBarLabel: 'History' }}
       />
     </Tab.Navigator>
   );
@@ -106,7 +112,17 @@ export default function App() {
       <View style={{ flex: 1 }}>
         <StatusBar barStyle="dark-content" backgroundColor="#fff" />
         <NavigationContainer>
-          <MainTabs />
+          <Stack.Navigator screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="Main" component={MainTabs} />
+            <Stack.Screen 
+              name="ProductDetails" 
+              component={ProductDetailsScreen}
+              options={{ 
+                headerShown: false,
+                presentation: 'modal' 
+              }}
+            />
+          </Stack.Navigator>
         </NavigationContainer>
       </View>
     </SafeAreaProvider>

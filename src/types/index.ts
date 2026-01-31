@@ -1,11 +1,19 @@
 export type RootStackParamList = {
-  Home: undefined;
-  Scan: undefined;
+  Main: undefined;
   ProductDetails: { item: ScannedItem };
 };
 
 export type TabParamList = {
   HomeTab: undefined;
+  HistoryTab: undefined;
+};
+
+export type HomeStackParamList = {
+  Home: undefined;
+  Scan: undefined;
+};
+
+export type HistoryStackParamList = {
   History: undefined;
 };
 
