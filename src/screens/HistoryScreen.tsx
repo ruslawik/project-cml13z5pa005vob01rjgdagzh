@@ -8,6 +8,34 @@ import { theme } from '../constants/theme';
 
 const STORAGE_KEY = '@scanned_items_history';
 
+// Sample hardcoded data to demonstrate app functionality
+const sampleHistoryItems: ScannedItem[] = [
+  {
+    id: '1',
+    barcode: '0123456789012',
+    productName: 'Organic Whole Wheat Bread',
+    brand: 'Nature\'s Best',
+    timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
+    qualityScore: 85,
+  },
+  {
+    id: '2',
+    barcode: '9876543210987',
+    productName: 'Greek Yogurt Vanilla',
+    brand: 'Dairy Fresh',
+    timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000), // 6 hours ago
+    qualityScore: 78,
+  },
+  {
+    id: '3',
+    barcode: '4567891234567',
+    productName: 'Dark Chocolate Bar 70%',
+    brand: 'Pure Cacao',
+    timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000), // 1 day ago
+    qualityScore: 92,
+  },
+];
+
 export default function HistoryScreen() {
   const [scannedItems, setScannedItems] = useState<ScannedItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -19,14 +47,24 @@ export default function HistoryScreen() {
   const loadHistory = async () => {
     try {
       const storedItems = await AsyncStorage.getItem(STORAGE_KEY);
+      let items: ScannedItem[] = [];
+      
       if (storedItems) {
-        const items: ScannedItem[] = JSON.parse(storedItems);
-        // Sort by timestamp, most recent first
-        items.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-        setScannedItems(items);
+        items = JSON.parse(storedItems);
+      } else {
+        // If no stored items, use sample data to demonstrate functionality
+        items = sampleHistoryItems;
+        // Store sample data for persistence
+        await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(sampleHistoryItems));
       }
+      
+      // Sort by timestamp, most recent first
+      items.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      setScannedItems(items);
     } catch (error) {
       console.error('Error loading history:', error);
+      // Fallback to sample data if storage fails
+      setScannedItems(sampleHistoryItems);
     } finally {
       setLoading(false);
     }
