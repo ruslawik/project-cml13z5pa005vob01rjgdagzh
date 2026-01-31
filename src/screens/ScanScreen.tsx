@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, Animated, Dimensions, StyleSheet, Alert, TouchableOpacity, TextInput, ActivityIndicator, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { CameraView, useCameraPermissions } from 'expo-camera';
+import { CameraView, useCameraPermissions, BarcodeScanningResult } from 'expo-camera';
 
 import Button from '../components/Button';
 import NutrientCard from '../components/NutrientCard';
@@ -193,11 +193,11 @@ export default function ScanScreen() {
     }
   };
 
-  const handleBarcodeScanned = (data: { data: string }) => {
-    if (scannedBarcode === data.data) return; // Prevent multiple scans of same barcode
+  const handleBarcodeScanned = (scanningResult: BarcodeScanningResult) => {
+    if (scannedBarcode === scanningResult.data) return; // Prevent multiple scans of same barcode
     
-    setScannedBarcode(data.data);
-    handleBarcodeProcessing(data.data);
+    setScannedBarcode(scanningResult.data);
+    handleBarcodeProcessing(scanningResult.data);
   };
 
   const openCamera = async () => {
@@ -248,20 +248,18 @@ export default function ScanScreen() {
   };
 
   const showBottomSheet = () => {
-    Animated.spring(bottomSheetTranslateY, {
+    Animated.timing(bottomSheetTranslateY, {
       toValue: SCREEN_HEIGHT - BOTTOM_SHEET_MAX_HEIGHT,
+      duration: 300,
       useNativeDriver: false,
-      tension: 100,
-      friction: 8,
     }).start();
   };
 
   const hideBottomSheet = () => {
-    Animated.spring(bottomSheetTranslateY, {
+    Animated.timing(bottomSheetTranslateY, {
       toValue: SCREEN_HEIGHT,
+      duration: 300,
       useNativeDriver: false,
-      tension: 100,
-      friction: 8,
     }).start();
   };
 
@@ -286,252 +284,228 @@ export default function ScanScreen() {
 
     if (showCamera) {
       startScanningAnimation();
-    } else {
-      scanningAnimationRef.current?.stop();
-      scanningAnimation.setValue(0);
     }
 
     return () => {
-      scanningAnimationRef.current?.stop();
+      if (scanningAnimationRef.current) {
+        scanningAnimationRef.current.stop();
+      }
     };
-  }, [showCamera]);
+  }, [showCamera, scanningAnimation]);
 
-  if (!permission) {
+  // Camera permission loading state
+  if (permission === null) {
     return (
-      <View style={styles.container}>
+      <View style={styles.permissionContainer}>
         <ActivityIndicator size="large" color={theme.colors.primary} />
-        <Text style={styles.statusText}>Loading camera...</Text>
-      </View>
-    );
-  }
-
-  if (!permission.granted) {
-    return (
-      <View style={styles.container}>
-        <Ionicons name="camera-outline" size={80} color={theme.colors.textSecondary} />
-        <Text style={styles.title}>Camera Permission Required</Text>
-        <Text style={styles.subtitle}>
-          Camera access is needed to scan product barcodes
-        </Text>
-        <Button title="Grant Permission" onPress={requestPermission} />
+        <Text style={styles.permissionText}>Loading camera permissions...</Text>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      {showCamera ? (
+      {/* Camera View */}
+      {showCamera && permission?.granted ? (
         <View style={styles.cameraContainer}>
           <CameraView
             style={styles.camera}
-            onBarcodeScanned={handleBarcodeScanned}
+            facing="back"
             barcodeScannerSettings={{
-              barcodeTypes: ['ean13', 'ean8', 'upc_a', 'upc_e', 'code128', 'code39'],
+              barcodeTypes: ["ean13", "ean8", "upc_a", "upc_e", "code128", "code39", "code93", "codabar", "qr"],
             }}
-          />
-          
-          <View style={styles.scanningOverlay}>
-            <View style={styles.scanningFrame}>
-              <Animated.View
-                style={[
-                  styles.scanningLine,
-                  {
-                    transform: [
-                      {
+            onBarcodeScanned={handleBarcodeScanned}
+          >
+            {/* Scanning overlay */}
+            <View style={styles.scanOverlay}>
+              <View style={styles.scanFrame}>
+                <Animated.View
+                  style={[
+                    styles.scanLine,
+                    {
+                      transform: [{
                         translateY: scanningAnimation.interpolate({
                           inputRange: [0, 1],
                           outputRange: [0, 200],
-                        }),
-                      },
-                    ],
-                  },
-                ]}
-              />
+                        })
+                      }]
+                    }
+                  ]}
+                />
+              </View>
             </View>
             
-            <View style={styles.scanningInfo}>
-              <Text style={styles.scanningText}>{scanningStatus}</Text>
-              <Text style={styles.scanningSubtext}>
-                Position barcode within the frame
-              </Text>
+            {/* Status text */}
+            <View style={styles.statusContainer}>
+              <Text style={styles.statusText}>{scanningStatus}</Text>
             </View>
+
+            {/* Close button */}
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={() => setShowCamera(false)}
+            >
+              <Ionicons name="close" size={24} color="#fff" />
+            </TouchableOpacity>
+          </CameraView>
+        </View>
+      ) : (
+        /* Main content when camera is not active */
+        <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
+          {/* Header */}
+          <View style={styles.header}>
+            <Ionicons name="scan-outline" size={48} color={theme.colors.primary} />
+            <Text style={styles.title}>Scan Product Barcode</Text>
+            <Text style={styles.subtitle}>
+              Point your camera at a product barcode to get nutritional information
+            </Text>
           </View>
 
-          <View style={styles.cameraControls}>
-            <View style={{ backgroundColor: theme.colors.surface, borderRadius: 8, overflow: 'hidden' }}>
-              <TouchableOpacity style={styles.closeButton} onPress={resetScanning}>
-                <Ionicons name="close" size={24} color={theme.colors.text} />
-                <Text style={styles.closeButtonText}>Close</Text>
+          {/* Camera button */}
+          <Button
+            title="Open Camera"
+            onPress={openCamera}
+            style={styles.cameraButton}
+            icon="camera"
+          />
+
+          {/* Manual entry section */}
+          <View style={styles.manualSection}>
+            <Text style={styles.sectionTitle}>Or enter barcode manually:</Text>
+            <View style={styles.inputContainer}>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter barcode number"
+                value={manualBarcode}
+                onChangeText={setManualBarcode}
+                keyboardType="numeric"
+                maxLength={13}
+              />
+              <TouchableOpacity
+                style={styles.scanButton}
+                onPress={handleManualScan}
+                disabled={isProcessing}
+              >
+                {isProcessing ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Ionicons name="search" size={20} color="#fff" />
+                )}
               </TouchableOpacity>
             </View>
           </View>
-        </View>
-      ) : (
-        <>
-          <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
-            <View style={styles.header}>
-              <Ionicons name="barcode-outline" size={48} color={theme.colors.primary} />
-              <Text style={styles.title}>Scan Product Barcode</Text>
-              <Text style={styles.subtitle}>
-                Scan any product to get detailed nutrition information
-              </Text>
-            </View>
 
-            <View style={styles.actionSection}>
-              <Button 
-                title="Open Camera" 
-                onPress={openCamera}
-                disabled={isProcessing}
-                icon="camera"
-              />
-              
-              <View style={styles.divider}>
-                <View style={styles.dividerLine} />
-                <Text style={styles.dividerText}>OR</Text>
-                <View style={styles.dividerLine} />
-              </View>
-
-              <View style={styles.manualInputSection}>
-                <Text style={styles.sectionTitle}>Enter Barcode Manually</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Enter barcode number"
-                  value={manualBarcode}
-                  onChangeText={setManualBarcode}
-                  keyboardType="numeric"
-                />
-                <Button 
-                  title="Scan Barcode" 
-                  onPress={handleManualScan}
+          {/* Sample barcodes */}
+          <View style={styles.samplesSection}>
+            <Text style={styles.sectionTitle}>Try these sample barcodes:</Text>
+            <View style={styles.sampleButtons}>
+              {sampleBarcodes.map((barcode) => (
+                <TouchableOpacity
+                  key={barcode}
+                  style={styles.sampleButton}
+                  onPress={() => handleSampleScan(barcode)}
                   disabled={isProcessing}
-                  style={styles.manualScanButton}
-                />
-              </View>
+                >
+                  <Text style={styles.sampleButtonText}>{barcode}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
 
-              <View style={styles.sampleSection}>
-                <Text style={styles.sectionTitle}>Try Sample Products</Text>
-                <View style={styles.sampleGrid}>
-                  {sampleBarcodes.map((barcode) => {
-                    const product = mockProductDatabase[barcode];
-                    return (
-                      <View key={barcode} style={{ backgroundColor: theme.colors.surface, borderRadius: 12, overflow: 'hidden' }}>
-                        <TouchableOpacity
-                          style={styles.sampleCard}
-                          onPress={() => handleSampleScan(barcode)}
-                          disabled={isProcessing}
-                        >
-                          <View style={styles.sampleHeader}>
-                            <Text style={styles.sampleName} numberOfLines={1}>
-                              {product.name}
-                            </Text>
-                            <View style={[styles.sampleScoreBadge, { backgroundColor: product.qualityScore >= 80 ? theme.colors.success : product.qualityScore >= 60 ? theme.colors.warning : theme.colors.error }]}>
-                              <Text style={styles.sampleScoreText}>{product.qualityScore}</Text>
-                            </View>
-                          </View>
-                          <Text style={styles.sampleBrand}>{product.brand}</Text>
-                          <Text style={styles.sampleBarcode}>{barcode}</Text>
-                        </TouchableOpacity>
-                      </View>
-                    );
-                  })}
-                </View>
+          {/* Processing indicator */}
+          {isProcessing && (
+            <View style={styles.processingContainer}>
+              <ActivityIndicator size="large" color={theme.colors.primary} />
+              <Text style={styles.processingText}>{scanningStatus}</Text>
+            </View>
+          )}
+
+          {/* Error message */}
+          {error && (
+            <View style={styles.errorContainer}>
+              <Ionicons name="alert-circle" size={24} color="#ff4444" />
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          )}
+        </ScrollView>
+      )}
+
+      {/* Bottom sheet for product details */}
+      <Animated.View
+        style={[
+          styles.bottomSheet,
+          {
+            transform: [{ translateY: bottomSheetTranslateY }],
+          },
+        ]}
+      >
+        {scannedProduct && (
+          <ScrollView style={styles.bottomSheetContent} showsVerticalScrollIndicator={false}>
+            {/* Handle bar */}
+            <View style={styles.bottomSheetHandle} />
+
+            {/* Product header */}
+            <View style={styles.productHeader}>
+              <Text style={styles.productName}>{scannedProduct.name}</Text>
+              <Text style={styles.productBrand}>{scannedProduct.brand}</Text>
+              <Text style={styles.productBarcode}>Barcode: {scannedProduct.barcode}</Text>
+            </View>
+
+            {/* Quality score */}
+            <QualityScore score={scannedProduct.qualityScore} />
+
+            {/* Nutrients */}
+            <View style={styles.nutrientsSection}>
+              <Text style={styles.nutrientsTitle}>Nutritional Information</Text>
+              <View style={styles.nutrientsGrid}>
+                {Object.entries(scannedProduct.nutrients).map(([key, nutrient]) => (
+                  <NutrientCard
+                    key={key}
+                    label={key.charAt(0).toUpperCase() + key.slice(1)}
+                    value={nutrient.value}
+                    unit={nutrient.unit}
+                    per={nutrient.per}
+                  />
+                ))}
               </View>
             </View>
 
-            {isProcessing && (
-              <View style={styles.processingSection}>
-                <ActivityIndicator size="large" color={theme.colors.primary} />
-                <Text style={styles.processingText}>{scanningStatus}</Text>
+            {/* Health warnings */}
+            {scannedProduct.healthWarnings.length > 0 && (
+              <View style={styles.warningsSection}>
+                <Text style={styles.warningsTitle}>Health Warnings</Text>
+                {scannedProduct.healthWarnings.map((warning, index) => (
+                  <View key={index} style={styles.warningItem}>
+                    <Ionicons name="warning" size={16} color="#ff6b35" />
+                    <Text style={styles.warningText}>{warning}</Text>
+                  </View>
+                ))}
               </View>
             )}
 
-            {error && (
-              <View style={styles.errorSection}>
-                <Ionicons name="alert-circle" size={24} color={theme.colors.error} />
-                <Text style={styles.errorText}>{error}</Text>
+            {/* Benefits */}
+            {scannedProduct.benefits.length > 0 && (
+              <View style={styles.benefitsSection}>
+                <Text style={styles.benefitsTitle}>Health Benefits</Text>
+                {scannedProduct.benefits.map((benefit, index) => (
+                  <View key={index} style={styles.benefitItem}>
+                    <Ionicons name="checkmark-circle" size={16} color="#4caf50" />
+                    <Text style={styles.benefitText}>{benefit}</Text>
+                  </View>
+                ))}
               </View>
             )}
+
+            {/* Scan another button */}
+            <Button
+              title="Scan Another Product"
+              onPress={resetScanning}
+              style={styles.scanAnotherButton}
+              icon="scan-outline"
+            />
           </ScrollView>
-
-          {scannedProduct && (
-            <Animated.View
-              style={[
-                styles.bottomSheet,
-                {
-                  transform: [{ translateY: bottomSheetTranslateY }],
-                },
-              ]}
-            >
-              <View style={styles.bottomSheetHandle} />
-              
-              <ScrollView style={styles.bottomSheetContent} showsVerticalScrollIndicator={false}>
-                <View style={styles.productHeader}>
-                  <View style={styles.productTitleSection}>
-                    <Text style={styles.productName}>{scannedProduct.name}</Text>
-                    <Text style={styles.productBrand}>{scannedProduct.brand}</Text>
-                    <View style={styles.barcodeContainer}>
-                      <Ionicons name="barcode-outline" size={16} color={theme.colors.textSecondary} />
-                      <Text style={styles.productBarcode}>{scannedProduct.barcode}</Text>
-                    </View>
-                  </View>
-                </View>
-
-                <View style={styles.qualityScoreContainer}>
-                  <QualityScore score={scannedProduct.qualityScore} product={scannedProduct} />
-                </View>
-
-                <View style={styles.nutrientsGrid}>
-                  {Object.entries(scannedProduct.nutrients).map(([key, nutrient]) => (
-                    <NutrientCard
-                      key={key}
-                      name={key.charAt(0).toUpperCase() + key.slice(1)}
-                      value={nutrient.value}
-                      unit={nutrient.unit}
-                      per={nutrient.per}
-                    />
-                  ))}
-                </View>
-
-                {scannedProduct.benefits.length > 0 && (
-                  <View style={styles.benefitsSection}>
-                    <Text style={styles.sectionTitle}>Health Benefits</Text>
-                    <View style={styles.benefitsList}>
-                      {scannedProduct.benefits.map((benefit, index) => (
-                        <View key={index} style={styles.benefitItem}>
-                          <Ionicons name="checkmark-circle" size={16} color={theme.colors.success} />
-                          <Text style={styles.benefitText}>{benefit}</Text>
-                        </View>
-                      ))}
-                    </View>
-                  </View>
-                )}
-
-                {scannedProduct.healthWarnings.length > 0 && (
-                  <View style={styles.warningsSection}>
-                    <Text style={styles.sectionTitle}>Health Warnings</Text>
-                    <View style={styles.warningsList}>
-                      {scannedProduct.healthWarnings.map((warning, index) => (
-                        <View key={index} style={styles.warningItem}>
-                          <Ionicons name="warning" size={16} color={theme.colors.warning} />
-                          <Text style={styles.warningText}>{warning}</Text>
-                        </View>
-                      ))}
-                    </View>
-                  </View>
-                )}
-
-                <View style={styles.bottomSheetActions}>
-                  <Button 
-                    title="Scan Another Product" 
-                    onPress={resetScanning}
-                    style={styles.scanAnotherButton}
-                  />
-                </View>
-              </ScrollView>
-            </Animated.View>
-          )}
-        </>
-      )}
+        )}
+      </Animated.View>
     </View>
   );
 }
@@ -539,138 +513,19 @@ export default function ScanScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
+    backgroundColor: '#f8f9fa',
   },
-  content: {
+  permissionContainer: {
     flex: 1,
-  },
-  contentContainer: {
-    padding: theme.spacing.md,
-  },
-  header: {
+    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: theme.spacing.xl,
-    paddingTop: theme.spacing.lg,
+    backgroundColor: '#f8f9fa',
   },
-  title: {
-    ...theme.typography.heading,
-    color: theme.colors.text,
-    marginTop: theme.spacing.md,
+  permissionText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#666',
     textAlign: 'center',
-  },
-  subtitle: {
-    ...theme.typography.body,
-    color: theme.colors.textSecondary,
-    textAlign: 'center',
-    marginTop: theme.spacing.sm,
-    lineHeight: 22,
-  },
-  actionSection: {
-    marginBottom: theme.spacing.xl,
-  },
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: theme.spacing.lg,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: theme.colors.border,
-  },
-  dividerText: {
-    marginHorizontal: theme.spacing.md,
-    color: theme.colors.textSecondary,
-    fontSize: 14,
-  },
-  manualInputSection: {
-    marginBottom: theme.spacing.xl,
-  },
-  sectionTitle: {
-    ...theme.typography.subheading,
-    color: theme.colors.text,
-    marginBottom: theme.spacing.md,
-  },
-  input: {
-    backgroundColor: theme.colors.surface,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    borderRadius: theme.borderRadius.md,
-    padding: theme.spacing.md,
-    fontSize: 16,
-    marginBottom: theme.spacing.md,
-  },
-  manualScanButton: {
-    backgroundColor: theme.colors.secondary,
-  },
-  sampleSection: {
-    marginBottom: theme.spacing.xl,
-  },
-  sampleGrid: {
-    gap: theme.spacing.md,
-  },
-  sampleCard: {
-    padding: theme.spacing.md,
-  },
-  sampleHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: theme.spacing.xs,
-  },
-  sampleName: {
-    flex: 1,
-    fontSize: 16,
-    fontWeight: '600',
-    color: theme.colors.text,
-    marginRight: theme.spacing.sm,
-  },
-  sampleScoreBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    minWidth: 32,
-    alignItems: 'center',
-  },
-  sampleScoreText: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  sampleBrand: {
-    fontSize: 14,
-    color: theme.colors.textSecondary,
-    marginBottom: theme.spacing.xs,
-  },
-  sampleBarcode: {
-    fontSize: 12,
-    color: theme.colors.textSecondary,
-    fontFamily: 'monospace',
-  },
-  processingSection: {
-    alignItems: 'center',
-    padding: theme.spacing.lg,
-    backgroundColor: theme.colors.surface,
-    borderRadius: theme.borderRadius.lg,
-    marginBottom: theme.spacing.md,
-  },
-  processingText: {
-    marginTop: theme.spacing.md,
-    color: theme.colors.text,
-    fontSize: 16,
-  },
-  errorSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: theme.spacing.md,
-    backgroundColor: '#fee2e2',
-    borderRadius: theme.borderRadius.lg,
-    marginBottom: theme.spacing.md,
-  },
-  errorText: {
-    marginLeft: theme.spacing.sm,
-    color: theme.colors.error,
-    flex: 1,
   },
   cameraContainer: {
     flex: 1,
@@ -678,184 +533,276 @@ const styles = StyleSheet.create({
   camera: {
     flex: 1,
   },
-  scanningOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+  scanOverlay: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  scanningFrame: {
+  scanFrame: {
     width: 250,
     height: 200,
     borderWidth: 2,
-    borderColor: 'white',
-    borderRadius: theme.borderRadius.md,
+    borderColor: '#fff',
+    backgroundColor: 'transparent',
     position: 'relative',
-    overflow: 'hidden',
+    borderRadius: 12,
   },
-  scanningLine: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
+  scanLine: {
+    width: '100%',
     height: 2,
     backgroundColor: theme.colors.primary,
-    shadowColor: theme.colors.primary,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 4,
-  },
-  scanningInfo: {
     position: 'absolute',
-    bottom: 150,
-    alignItems: 'center',
+    top: 0,
   },
-  scanningText: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    textShadowColor: 'rgba(0,0,0,0.8)',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 2,
-  },
-  scanningSubtext: {
-    color: 'white',
-    fontSize: 14,
-    textAlign: 'center',
-    marginTop: theme.spacing.sm,
-    textShadowColor: 'rgba(0,0,0,0.8)',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 2,
-  },
-  cameraControls: {
+  statusContainer: {
     position: 'absolute',
-    bottom: 50,
-    left: theme.spacing.md,
-    right: theme.spacing.md,
+    bottom: 100,
+    left: 0,
+    right: 0,
     alignItems: 'center',
-  },
-  closeButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: theme.spacing.md,
-  },
-  closeButtonText: {
-    color: theme.colors.text,
-    fontSize: 16,
-    fontWeight: '600',
-    marginLeft: theme.spacing.sm,
   },
   statusText: {
-    marginTop: theme.spacing.md,
+    color: '#fff',
     fontSize: 16,
-    color: theme.colors.textSecondary,
+    fontWeight: '600',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  closeButton: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  content: {
+    flex: 1,
+  },
+  contentContainer: {
+    paddingBottom: 100,
+  },
+  header: {
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 40,
+    paddingBottom: 30,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
+    marginTop: 16,
+    textAlign: 'center',
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    marginTop: 8,
+    lineHeight: 22,
+  },
+  cameraButton: {
+    marginHorizontal: 20,
+    marginBottom: 30,
+  },
+  manualSection: {
+    paddingHorizontal: 20,
+    marginBottom: 30,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 16,
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  input: {
+    flex: 1,
+    height: 48,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    fontSize: 16,
+    backgroundColor: '#fff',
+  },
+  scanButton: {
+    marginLeft: 12,
+    width: 48,
+    height: 48,
+    backgroundColor: theme.colors.primary,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  samplesSection: {
+    paddingHorizontal: 20,
+    marginBottom: 30,
+  },
+  sampleButtons: {
+    gap: 12,
+  },
+  sampleButton: {
+    backgroundColor: '#fff',
+    padding: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  sampleButtonText: {
+    fontSize: 16,
+    color: theme.colors.primary,
+    fontFamily: 'monospace',
+    textAlign: 'center',
+  },
+  processingContainer: {
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 30,
+  },
+  processingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+  },
+  errorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffebee',
+    padding: 16,
+    marginHorizontal: 20,
+    borderRadius: 8,
+    borderLeftWidth: 4,
+    borderLeftColor: '#ff4444',
+  },
+  errorText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#d32f2f',
+    marginLeft: 12,
+    lineHeight: 20,
   },
   bottomSheet: {
     position: 'absolute',
     left: 0,
     right: 0,
-    bottom: 0,
     height: BOTTOM_SHEET_MAX_HEIGHT,
-    backgroundColor: theme.colors.surface,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
+    shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.25,
-    shadowRadius: 10,
+    shadowRadius: 12,
+  },
+  bottomSheetContent: {
+    flex: 1,
   },
   bottomSheetHandle: {
     width: 40,
     height: 4,
-    backgroundColor: theme.colors.border,
-    alignSelf: 'center',
-    marginTop: theme.spacing.md,
+    backgroundColor: '#ddd',
     borderRadius: 2,
-  },
-  bottomSheetContent: {
-    flex: 1,
-    padding: theme.spacing.md,
+    alignSelf: 'center',
+    marginTop: 12,
+    marginBottom: 20,
   },
   productHeader: {
-    marginBottom: theme.spacing.lg,
-  },
-  productTitleSection: {
-    marginBottom: theme.spacing.md,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
   },
   productName: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: 'bold',
-    color: theme.colors.text,
-    marginBottom: theme.spacing.xs,
+    color: '#333',
+    marginBottom: 4,
   },
   productBrand: {
-    fontSize: 18,
-    color: theme.colors.textSecondary,
-    marginBottom: theme.spacing.sm,
-  },
-  barcodeContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    fontSize: 16,
+    color: '#666',
+    marginBottom: 8,
   },
   productBarcode: {
     fontSize: 14,
-    color: theme.colors.textSecondary,
+    color: '#999',
     fontFamily: 'monospace',
-    marginLeft: theme.spacing.xs,
   },
-  qualityScoreContainer: {
-    marginBottom: theme.spacing.lg,
+  nutrientsSection: {
+    padding: 20,
+  },
+  nutrientsTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 16,
   },
   nutrientsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    marginBottom: theme.spacing.lg,
-  },
-  benefitsSection: {
-    marginBottom: theme.spacing.lg,
-  },
-  benefitsList: {
-    gap: theme.spacing.sm,
-  },
-  benefitItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: theme.spacing.sm,
-    backgroundColor: '#f0f9f0',
-    borderRadius: theme.borderRadius.sm,
-  },
-  benefitText: {
-    marginLeft: theme.spacing.sm,
-    color: theme.colors.text,
-    flex: 1,
+    gap: 12,
   },
   warningsSection: {
-    marginBottom: theme.spacing.lg,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
   },
-  warningsList: {
-    gap: theme.spacing.sm,
+  warningsTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#ff6b35',
+    marginBottom: 12,
   },
   warningItem: {
     flexDirection: 'row',
-    alignItems: 'center',
-    padding: theme.spacing.sm,
-    backgroundColor: '#fff8f0',
-    borderRadius: theme.borderRadius.sm,
+    alignItems: 'flex-start',
+    marginBottom: 8,
   },
   warningText: {
-    marginLeft: theme.spacing.sm,
-    color: theme.colors.text,
     flex: 1,
+    fontSize: 14,
+    color: '#ff6b35',
+    marginLeft: 8,
+    lineHeight: 20,
   },
-  bottomSheetActions: {
-    paddingTop: theme.spacing.md,
-    paddingBottom: theme.spacing.lg,
+  benefitsSection: {
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+  },
+  benefitsTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#4caf50',
+    marginBottom: 12,
+  },
+  benefitItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 8,
+  },
+  benefitText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#4caf50',
+    marginLeft: 8,
+    lineHeight: 20,
   },
   scanAnotherButton: {
-    backgroundColor: theme.colors.primary,
+    marginHorizontal: 20,
+    marginBottom: 20,
   },
 });
