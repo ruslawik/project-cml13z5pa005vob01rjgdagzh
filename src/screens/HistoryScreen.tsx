@@ -1,13 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, FlatList, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, FlatList, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useNavigation } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
 
-import { ScannedItem } from '../types';
+import { ScannedItem, RootStackParamList } from '../types';
 import { theme } from '../constants/theme';
-import NutrientCard from '../components/NutrientCard';
 
 const STORAGE_KEY = '@scanned_items_history';
+
+type NavigationProp = StackNavigationProp<RootStackParamList>;
 
 // Sample hardcoded data to demonstrate app functionality
 const sampleHistoryItems: ScannedItem[] = [
@@ -67,7 +70,7 @@ const sampleHistoryItems: ScannedItem[] = [
 export default function HistoryScreen() {
   const [scannedItems, setScannedItems] = useState<ScannedItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [expandedItems, setExpandedItems] = useState<string[]>([]);
+  const navigation = useNavigation<NavigationProp>();
 
   useEffect(() => {
     loadHistory();
@@ -103,18 +106,13 @@ export default function HistoryScreen() {
     try {
       await AsyncStorage.removeItem(STORAGE_KEY);
       setScannedItems([]);
-      setExpandedItems([]);
     } catch (error) {
       console.error('Error clearing history:', error);
     }
   };
 
-  const toggleExpanded = (itemId: string) => {
-    setExpandedItems(prev => 
-      prev.includes(itemId) 
-        ? prev.filter(id => id !== itemId)
-        : [...prev, itemId]
-    );
+  const handleItemPress = (item: ScannedItem) => {
+    navigation.navigate('ProductDetails', { item });
   };
 
   const getQualityColor = (score: number) => {
@@ -137,60 +135,12 @@ export default function HistoryScreen() {
     }
   };
 
-  const renderNutrientInfo = (item: ScannedItem) => {
-    if (!item.nutrients) return null;
-
-    const { nutrients } = item;
-    const mainNutrients = [
-      { name: 'Calories', value: nutrients.calories.value, unit: nutrients.calories.unit },
-      { name: 'Protein', value: nutrients.protein.value, unit: nutrients.protein.unit },
-      { name: 'Carbs', value: nutrients.carbs.value, unit: nutrients.carbs.unit },
-      { name: 'Fat', value: nutrients.fat.value, unit: nutrients.fat.unit },
-    ];
-
-    const detailNutrients = [
-      { name: 'Fiber', value: nutrients.fiber.value, unit: nutrients.fiber.unit },
-      { name: 'Sugar', value: nutrients.sugar.value, unit: nutrients.sugar.unit },
-      { name: 'Sodium', value: nutrients.sodium.value, unit: nutrients.sodium.unit },
-    ];
-
-    return (
-      <View style={styles.nutrientSection}>
-        <Text style={styles.nutrientTitle}>Nutrition per {nutrients.calories.per}</Text>
-        <View style={styles.nutrientGrid}>
-          {mainNutrients.map((nutrient, index) => (
-            <NutrientCard
-              key={index}
-              name={nutrient.name}
-              value={nutrient.value}
-              unit={nutrient.unit}
-              size="small"
-            />
-          ))}
-        </View>
-        <View style={styles.nutrientGrid}>
-          {detailNutrients.map((nutrient, index) => (
-            <NutrientCard
-              key={index}
-              name={nutrient.name}
-              value={nutrient.value}
-              unit={nutrient.unit}
-              size="small"
-            />
-          ))}
-        </View>
-      </View>
-    );
-  };
-
   const renderHistoryItem = ({ item }: { item: ScannedItem }) => {
-    const isExpanded = expandedItems.includes(item.id);
-
     return (
       <View style={styles.historyItem}>
         <TouchableOpacity 
           style={styles.itemHeader}
-          onPress={() => toggleExpanded(item.id)}
+          onPress={() => handleItemPress(item)}
           activeOpacity={0.7}
         >
           <View style={styles.itemInfo}>
@@ -204,14 +154,13 @@ export default function HistoryScreen() {
               <Text style={styles.qualityText}>{item.qualityScore}</Text>
             </View>
             <Ionicons 
-              name={isExpanded ? "chevron-up" : "chevron-down"} 
+              name="chevron-forward" 
               size={24} 
               color={theme.colors.textSecondary}
               style={styles.expandIcon}
             />
           </View>
         </TouchableOpacity>
-        {isExpanded && renderNutrientInfo(item)}
       </View>
     );
   };
@@ -237,17 +186,25 @@ export default function HistoryScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Scan History ({scannedItems.length})</Text>
-        <TouchableOpacity onPress={clearHistory} style={styles.clearButton}>
-          <Ionicons name="trash-outline" size={20} color={theme.colors.text} />
-          <Text style={styles.clearText}>Clear</Text>
-        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Scan History</Text>
+        {scannedItems.length > 0 && (
+          <TouchableOpacity 
+            style={styles.clearButton}
+            onPress={clearHistory}
+            activeOpacity={0.7}
+          >
+            <View style={styles.clearButtonContainer}>
+              <Text style={styles.clearButtonText}>Clear</Text>
+            </View>
+          </TouchableOpacity>
+        )}
       </View>
       <FlatList
         data={scannedItems}
         renderItem={renderHistoryItem}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContainer}
+        style={styles.list}
+        contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
       />
     </View>
@@ -263,142 +220,119 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: theme.colors.background,
-    paddingHorizontal: 32,
-  },
-  loadingText: {
-    fontSize: 16,
-    color: theme.colors.textSecondary,
-    fontWeight: '500',
-  },
-  emptyTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: theme.colors.text,
-    marginTop: 24,
-    marginBottom: 12,
-    textAlign: 'center',
-  },
-  emptySubtitle: {
-    fontSize: 16,
-    color: theme.colors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 24,
-    maxWidth: 280,
+    paddingHorizontal: theme.spacing.lg,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 20,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.md,
+    backgroundColor: theme.colors.surface,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border,
-    backgroundColor: theme.colors.surface,
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
+    fontSize: theme.typography.heading.fontSize,
+    fontWeight: theme.typography.heading.fontWeight,
     color: theme.colors.text,
   },
   clearButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
+    overflow: 'hidden',
+    borderRadius: theme.borderRadius.md,
   },
-  clearText: {
-    color: theme.colors.text,
-    marginLeft: 6,
+  clearButtonContainer: {
+    backgroundColor: theme.colors.text,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+  },
+  clearButtonText: {
+    color: theme.colors.surface,
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '600',
   },
-  listContainer: {
-    padding: 20,
+  list: {
+    flex: 1,
+  },
+  listContent: {
+    paddingVertical: theme.spacing.sm,
   },
   historyItem: {
     backgroundColor: theme.colors.surface,
-    borderRadius: 12,
-    marginBottom: 16,
+    marginHorizontal: theme.spacing.md,
+    marginVertical: theme.spacing.xs,
+    borderRadius: theme.borderRadius.md,
     shadowColor: theme.colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
     borderWidth: 1,
     borderColor: theme.colors.border,
   },
   itemHeader: {
-    padding: 20,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    padding: theme.spacing.md,
   },
   itemInfo: {
     flex: 1,
   },
   productName: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
     color: theme.colors.text,
-    marginBottom: 6,
+    marginBottom: theme.spacing.xs,
   },
   brandName: {
     fontSize: 14,
     color: theme.colors.textSecondary,
-    marginBottom: 6,
-    fontWeight: '500',
+    marginBottom: theme.spacing.xs,
   },
   barcode: {
     fontSize: 12,
     color: theme.colors.textMuted,
-    marginBottom: 6,
-    fontFamily: 'monospace',
+    marginBottom: theme.spacing.xs,
   },
   timestamp: {
     fontSize: 12,
     color: theme.colors.textMuted,
-    fontWeight: '500',
   },
   itemActions: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginLeft: theme.spacing.md,
   },
   qualityBadge: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: 16,
-    borderWidth: 2,
-    borderColor: theme.colors.background,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    marginRight: theme.spacing.sm,
   },
   qualityText: {
-    fontSize: 18,
+    color: theme.colors.surface,
+    fontSize: 14,
     fontWeight: 'bold',
-    color: theme.colors.background,
   },
   expandIcon: {
-    marginLeft: 8,
+    marginLeft: theme.spacing.xs,
   },
-  nutrientSection: {
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.border,
+  loadingText: {
+    fontSize: theme.typography.body.fontSize,
+    color: theme.colors.textSecondary,
   },
-  nutrientTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
+  emptyTitle: {
+    fontSize: theme.typography.subheading.fontSize,
+    fontWeight: theme.typography.subheading.fontWeight,
     color: theme.colors.text,
-    marginBottom: 16,
-    marginTop: 16,
+    marginTop: theme.spacing.md,
+    marginBottom: theme.spacing.sm,
+    textAlign: 'center',
   },
-  nutrientGrid: {
-    flexDirection: 'row',
-    marginBottom: 12,
+  emptySubtitle: {
+    fontSize: theme.typography.body.fontSize,
+    color: theme.colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 22,
   },
 });

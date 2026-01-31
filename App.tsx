@@ -9,6 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import HomeScreen from './src/screens/HomeScreen';
 import ScanScreen from './src/screens/ScanScreen';
 import HistoryScreen from './src/screens/HistoryScreen';
+import ProductDetailsScreen from './src/screens/ProductDetailsScreen';
 import { RootStackParamList, TabParamList } from './src/types';
 
 const Stack = createStackNavigator<RootStackParamList>();
@@ -39,6 +40,11 @@ function HomeStack() {
         name="Scan" 
         component={ScanScreen}
         options={{ title: 'Barcode Scanner' }}
+      />
+      <Stack.Screen 
+        name="ProductDetails" 
+        component={ProductDetailsScreen}
+        options={{ headerShown: false }}
       />
     </Stack.Navigator>
   );

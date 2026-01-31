@@ -1,6 +1,7 @@
 export type RootStackParamList = {
   Home: undefined;
   Scan: undefined;
+  ProductDetails: { item: ScannedItem };
 };
 
 export type TabParamList = {
