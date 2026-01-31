@@ -8,6 +8,12 @@ export type TabParamList = {
   History: undefined;
 };
 
+export interface NutrientValue {
+  value: number;
+  unit: string;
+  per: string;
+}
+
 export interface ScannedItem {
   id: string;
   barcode: string;
@@ -15,12 +21,15 @@ export interface ScannedItem {
   brand: string;
   timestamp: Date;
   qualityScore: number;
-}
-
-export interface NutrientValue {
-  value: number;
-  unit: string;
-  per: string;
+  nutrients?: {
+    calories: NutrientValue;
+    protein: NutrientValue;
+    carbs: NutrientValue;
+    fat: NutrientValue;
+    fiber: NutrientValue;
+    sugar: NutrientValue;
+    sodium: NutrientValue;
+  };
 }
 
 export interface ProductInfo {

@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, FlatList, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, FlatList, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { ScannedItem } from '../types';
 import { theme } from '../constants/theme';
+import NutrientCard from '../components/NutrientCard';
 
 const STORAGE_KEY = '@scanned_items_history';
 
@@ -17,6 +18,15 @@ const sampleHistoryItems: ScannedItem[] = [
     brand: 'Nature\'s Best',
     timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
     qualityScore: 85,
+    nutrients: {
+      calories: { value: 80, unit: 'kcal', per: 'slice' },
+      protein: { value: 4, unit: 'g', per: 'slice' },
+      carbs: { value: 15, unit: 'g', per: 'slice' },
+      fat: { value: 1, unit: 'g', per: 'slice' },
+      fiber: { value: 3, unit: 'g', per: 'slice' },
+      sugar: { value: 1, unit: 'g', per: 'slice' },
+      sodium: { value: 140, unit: 'mg', per: 'slice' },
+    },
   },
   {
     id: '2',
@@ -25,6 +35,15 @@ const sampleHistoryItems: ScannedItem[] = [
     brand: 'Dairy Fresh',
     timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000), // 6 hours ago
     qualityScore: 78,
+    nutrients: {
+      calories: { value: 120, unit: 'kcal', per: '150g' },
+      protein: { value: 15, unit: 'g', per: '150g' },
+      carbs: { value: 12, unit: 'g', per: '150g' },
+      fat: { value: 2, unit: 'g', per: '150g' },
+      fiber: { value: 0, unit: 'g', per: '150g' },
+      sugar: { value: 10, unit: 'g', per: '150g' },
+      sodium: { value: 65, unit: 'mg', per: '150g' },
+    },
   },
   {
     id: '3',
@@ -33,12 +52,22 @@ const sampleHistoryItems: ScannedItem[] = [
     brand: 'Pure Cacao',
     timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000), // 1 day ago
     qualityScore: 92,
+    nutrients: {
+      calories: { value: 170, unit: 'kcal', per: '30g' },
+      protein: { value: 3, unit: 'g', per: '30g' },
+      carbs: { value: 12, unit: 'g', per: '30g' },
+      fat: { value: 12, unit: 'g', per: '30g' },
+      fiber: { value: 4, unit: 'g', per: '30g' },
+      sugar: { value: 7, unit: 'g', per: '30g' },
+      sodium: { value: 5, unit: 'mg', per: '30g' },
+    },
   },
 ];
 
 export default function HistoryScreen() {
   const [scannedItems, setScannedItems] = useState<ScannedItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [expandedItems, setExpandedItems] = useState<string[]>([]);
 
   useEffect(() => {
     loadHistory();
@@ -74,9 +103,18 @@ export default function HistoryScreen() {
     try {
       await AsyncStorage.removeItem(STORAGE_KEY);
       setScannedItems([]);
+      setExpandedItems([]);
     } catch (error) {
       console.error('Error clearing history:', error);
     }
+  };
+
+  const toggleExpanded = (itemId: string) => {
+    setExpandedItems(prev => 
+      prev.includes(itemId) 
+        ? prev.filter(id => id !== itemId)
+        : [...prev, itemId]
+    );
   };
 
   const getQualityColor = (score: number) => {
@@ -99,19 +137,84 @@ export default function HistoryScreen() {
     }
   };
 
-  const renderHistoryItem = ({ item }: { item: ScannedItem }) => (
-    <View style={styles.historyItem}>
-      <View style={styles.itemInfo}>
-        <Text style={styles.productName}>{item.productName}</Text>
-        <Text style={styles.brandName}>{item.brand}</Text>
-        <Text style={styles.barcode}>Barcode: {item.barcode}</Text>
-        <Text style={styles.timestamp}>{formatTimestamp(item.timestamp)}</Text>
+  const renderNutrientInfo = (item: ScannedItem) => {
+    if (!item.nutrients) return null;
+
+    const { nutrients } = item;
+    const mainNutrients = [
+      { name: 'Calories', value: nutrients.calories.value, unit: nutrients.calories.unit },
+      { name: 'Protein', value: nutrients.protein.value, unit: nutrients.protein.unit },
+      { name: 'Carbs', value: nutrients.carbs.value, unit: nutrients.carbs.unit },
+      { name: 'Fat', value: nutrients.fat.value, unit: nutrients.fat.unit },
+    ];
+
+    const detailNutrients = [
+      { name: 'Fiber', value: nutrients.fiber.value, unit: nutrients.fiber.unit },
+      { name: 'Sugar', value: nutrients.sugar.value, unit: nutrients.sugar.unit },
+      { name: 'Sodium', value: nutrients.sodium.value, unit: nutrients.sodium.unit },
+    ];
+
+    return (
+      <View style={styles.nutrientSection}>
+        <Text style={styles.nutrientTitle}>Nutrition per {nutrients.calories.per}</Text>
+        <View style={styles.nutrientGrid}>
+          {mainNutrients.map((nutrient, index) => (
+            <NutrientCard
+              key={index}
+              name={nutrient.name}
+              value={nutrient.value}
+              unit={nutrient.unit}
+              size="small"
+            />
+          ))}
+        </View>
+        <View style={styles.nutrientGrid}>
+          {detailNutrients.map((nutrient, index) => (
+            <NutrientCard
+              key={index}
+              name={nutrient.name}
+              value={nutrient.value}
+              unit={nutrient.unit}
+              size="small"
+            />
+          ))}
+        </View>
       </View>
-      <View style={[styles.qualityBadge, { backgroundColor: getQualityColor(item.qualityScore) }]}>
-        <Text style={styles.qualityText}>{item.qualityScore}</Text>
+    );
+  };
+
+  const renderHistoryItem = ({ item }: { item: ScannedItem }) => {
+    const isExpanded = expandedItems.includes(item.id);
+
+    return (
+      <View style={styles.historyItem}>
+        <TouchableOpacity 
+          style={styles.itemHeader}
+          onPress={() => toggleExpanded(item.id)}
+          activeOpacity={0.7}
+        >
+          <View style={styles.itemInfo}>
+            <Text style={styles.productName}>{item.productName}</Text>
+            <Text style={styles.brandName}>{item.brand}</Text>
+            <Text style={styles.barcode}>Barcode: {item.barcode}</Text>
+            <Text style={styles.timestamp}>{formatTimestamp(item.timestamp)}</Text>
+          </View>
+          <View style={styles.itemActions}>
+            <View style={[styles.qualityBadge, { backgroundColor: getQualityColor(item.qualityScore) }]}>
+              <Text style={styles.qualityText}>{item.qualityScore}</Text>
+            </View>
+            <Ionicons 
+              name={isExpanded ? "chevron-up" : "chevron-down"} 
+              size={24} 
+              color={theme.colors.textSecondary}
+              style={styles.expandIcon}
+            />
+          </View>
+        </TouchableOpacity>
+        {isExpanded && renderNutrientInfo(item)}
       </View>
-    </View>
-  );
+    );
+  };
 
   if (loading) {
     return (
@@ -219,17 +322,19 @@ const styles = StyleSheet.create({
   historyItem: {
     backgroundColor: theme.colors.surface,
     borderRadius: 12,
-    padding: 20,
     marginBottom: 16,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     shadowColor: theme.colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 8,
     borderWidth: 1,
     borderColor: theme.colors.border,
+  },
+  itemHeader: {
+    padding: 20,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   itemInfo: {
     flex: 1,
@@ -257,6 +362,10 @@ const styles = StyleSheet.create({
     color: theme.colors.textMuted,
     fontWeight: '500',
   },
+  itemActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   qualityBadge: {
     width: 56,
     height: 56,
@@ -271,5 +380,25 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: theme.colors.background,
+  },
+  expandIcon: {
+    marginLeft: 8,
+  },
+  nutrientSection: {
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.border,
+  },
+  nutrientTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: theme.colors.text,
+    marginBottom: 16,
+    marginTop: 16,
+  },
+  nutrientGrid: {
+    flexDirection: 'row',
+    marginBottom: 12,
   },
 });
