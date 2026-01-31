@@ -3,6 +3,20 @@ export type RootStackParamList = {
   Scan: undefined;
 };
 
+export type TabParamList = {
+  Scanner: undefined;
+  History: undefined;
+};
+
+export interface ScannedItem {
+  id: string;
+  barcode: string;
+  productName: string;
+  brand: string;
+  timestamp: Date;
+  qualityScore: number;
+}
+
 export interface NutrientValue {
   value: number;
   unit: string;
